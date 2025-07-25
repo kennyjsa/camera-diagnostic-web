@@ -23,6 +23,10 @@
       font-family: monospace;
       font-size: 0.875rem;
     }
+
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -44,12 +48,14 @@
     <button class="btn btn-primary btn-lg" id="iniciarBtn" onclick="iniciarDiagnostico()">
       <i class="bi bi-camera-video-fill me-1"></i> Iniciar Diagnóstico
     </button>
-    <button class="btn btn-success btn-lg" id="enviarBtn" onclick="enviarDiagnostico()" style="display:none">
-      <i class="bi bi-clipboard-check me-1"></i> Enviar Diagnóstico
-    </button>
   </div>
 
-  <form name="diagnostico" method="POST" netlify netlify-honeypot="bot-field" hidden>
+  <form name="diagnostico" method="POST" action="/thankyou.html" netlify-honeypot="bot-field" data-netlify="true">
+    <p class="hidden">
+      <label>
+        Don’t fill this out if you’re human: <input name="bot-field" type="text" />
+      </label>
+    </p>
     <input type="hidden" name="form-name" value="diagnostico" />
     <input type="hidden" name="debugId" />
     <input type="hidden" name="deviceDate" />
@@ -64,6 +70,11 @@
     <input type="hidden" name="permissionsMicrophone" />
     <input type="hidden" name="cameraInfo" />
     <input type="hidden" name="errors" />
+    
+
+    <button class="btn btn-success btn-lg" type="submit" id="enviarBtn" onclick="enviarDiagnostico()" style="display:none">
+      <i class="bi bi-clipboard-check me-1"></i> Enviar Diagnóstico
+    </button>
   </form>
 </div>
 
