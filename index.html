@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diagnóstico de Câmera</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .terminal {
+      background: rgb(33, 37, 41);
+      color: #0f0;
+      padding: 1rem;
+      height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      border-bottom-left-radius: 5px;
+      border-bottom-right-radius: 5px;
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-5" style="max-width: 600px;">
+  <div class="text-center mb-4">
+    <h1><i class="bi bi-camera-video-fill"></i> Diagnóstico de Câmera</h1>
+    <p class="text-muted">Verifique o funcionamento da sua câmera, navegador e permissões.</p>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-header bg-dark text-white">
+      <i class="bi bi-terminal"></i> Terminal de Diagnóstico
+    </div>
+    <div class="terminal" id="log">🟢 Aguardando início do diagnóstico...</div>
+  </div>
+
+  <div class="d-grid gap-3">
+    <button class="btn btn-primary btn-lg" id="iniciarBtn" onclick="iniciarDiagnostico()">
+      <i class="bi bi-camera-video-fill me-1"></i> Iniciar Diagnóstico
+    </button>
+    <button class="btn btn-success btn-lg" id="enviarBtn" onclick="enviarDiagnostico()" style="display:none">
+      <i class="bi bi-clipboard-check me-1"></i> Enviar Diagnóstico
+    </button>
+  </div>
+
+  <form name="diagnostico" method="POST" netlify netlify-honeypot="bot-field" hidden>
+    <input type="hidden" name="form-name" value="diagnostico" />
+    <input type="hidden" name="debugId" />
+    <input type="hidden" name="deviceDate" />
+    <input type="hidden" name="elapsedTimeMs" />
+    <input type="hidden" name="browserName" />
+    <input type="hidden" name="browserVersion" />
+    <input type="hidden" name="os" />
+    <input type="hidden" name="language" />
+    <input type="hidden" name="cameraCount" />
+    <input type="hidden" name="supportsMediaDevices" />
+    <input type="hidden" name="permissionsCamera" />
+    <input type="hidden" name="permissionsMicrophone" />
+    <input type="hidden" name="cameraInfo" />
+    <input type="hidden" name="errors" />
+  </form>
+</div>
+
+<script>
+// toda a lógica JS mantida aqui
+(function() {
+const logEl = document.getElementById('log');
+const enviarBtn = document.getElementById('enviarBtn');
+const iniciarBtn = document.getElementById('iniciarBtn');
+const form = document.forms['diagnostico'];
+let startTime;
+
+const log = (text) => {
+  logEl.textContent += `\n${text}`;
+  logEl.scrollTop = logEl.scrollHeight;
+};
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function iniciarDiagnostico() {
+  startTime = Date.now();
+  iniciarBtn.disabled = true;
+  logEl.textContent = "⏳ Iniciando diagnóstico...\n";
+  const errors = [];
+
+  const debugId = Date.now().toString();
+  const deviceDate = new Date().toISOString();
+
+  log("🔍 Coletando informações do navegador...");
+  await delay(300);
+  const ua = navigator.userAgent;
+  const platform = navigator.platform;
+  const language = navigator.language;
+
+  const browserInfo = parseUserAgent(ua);
+  form.browserName.value = browserInfo.name;
+  form.browserVersion.value = browserInfo.version;
+  form.os.value = platform;
+  form.language.value = language;
+  form.debugId.value = debugId;
+  form.deviceDate.value = deviceDate;
+  log("✅ Navegador: " + browserInfo.name + " " + browserInfo.version);
+
+  const supports = !!navigator.mediaDevices?.getUserMedia;
+  form.supportsMediaDevices.value = supports;
+  if (!supports) {
+    errors.push("Navegador não suporta mediaDevices.getUserMedia");
+    log("❌ Navegador não suporta getUserMedia.");
+  }
+
+  try {
+    log("🎥 Solicitando permissão de câmera...");
+    await navigator.mediaDevices.getUserMedia({ video: true });
+    log("✅ Permissão concedida.");
+  } catch (e) {
+    log("❌ Erro ao acessar câmera: " + e.message);
+    errors.push("Erro ao acessar câmera: " + e.message);
+  }
+
+  try {
+    const [camPerm, micPerm] = await Promise.all([
+      navigator.permissions.query({ name: 'camera' }),
+      navigator.permissions.query({ name: 'microphone' })
+    ]);
+    form.permissionsCamera.value = camPerm.state;
+    form.permissionsMicrophone.value = micPerm.state;
+    log(`📋 Permissões: câmera=${camPerm.state}, microfone=${micPerm.state}`);
+  } catch {
+    form.permissionsCamera.value = 'unsupported';
+    form.permissionsMicrophone.value = 'unsupported';
+    log("⚠️ Permissões não suportadas.");
+  }
+
+  let cameraData = [];
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(d => d.kind === 'videoinput');
+    form.cameraCount.value = cameras.length;
+    log(`🔎 ${cameras.length} câmera(s) detectada(s).`);
+
+    for (let i = 0; i < cameras.length; i++) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: cameras[i].deviceId } });
+        const track = stream.getVideoTracks()[0];
+        const data = {
+          deviceId: cameras[i].deviceId,
+          label: cameras[i].label,
+          capabilities: track.getCapabilities?.() || {},
+          settings: track.getSettings?.() || {},
+          constraints: track.getConstraints?.() || {},
+        };
+        stream.getTracks().forEach(t => t.stop());
+        cameraData.push(data);
+        log(`📷 ${i + 1}: ${data.label || 'Sem nome'}`);
+      } catch (e) {
+        errors.push(`Erro na câmera ${i + 1}: ` + e.message);
+        log(`❌ Erro na câmera ${i + 1}: ` + e.message);
+      }
+    }
+
+    form.cameraInfo.value = JSON.stringify(cameraData);
+  } catch (e) {
+    errors.push("Erro ao enumerar dispositivos: " + e.message);
+    log("❌ Erro ao enumerar dispositivos.");
+  }
+
+  form.elapsedTimeMs.value = Date.now() - startTime;
+  form.errors.value = JSON.stringify(errors);
+
+  if (errors.length > 0) {
+    log("\n⚠️ Diagnóstico concluído com erros.");
+  } else {
+    log("\n✅ Diagnóstico concluído com sucesso.");
+  }
+
+  enviarBtn.style.display = 'inline-block';
+}
+
+function enviarDiagnostico() {
+  log("\n📤 Enviando diagnóstico...");
+  form.submit();
+  iniciarBtn.style.display = 'none';
+  enviarBtn.style.display = 'none';
+  log("✅ Enviado! Redirecionando...");
+  setTimeout(() => window.location.href = "/thankyou.html", 1000);
+}
+
+function parseUserAgent(ua) {
+  let name = "Desconhecido", version = "0";
+  if (ua.includes("Chrome/")) {
+    name = "Chrome";
+    version = ua.split("Chrome/")[1].split(" ")[0];
+  } else if (ua.includes("Firefox/")) {
+    name = "Firefox";
+    version = ua.split("Firefox/")[1];
+  } else if (ua.includes("Safari/") && ua.includes("Version/")) {
+    name = "Safari";
+    version = ua.split("Version/")[1].split(" ")[0];
+  } else if (ua.includes("Edg/")) {
+    name = "Edge";
+    version = ua.split("Edg/")[1];
+  }
+  return { name, version };
+}
+
+window.iniciarDiagnostico = iniciarDiagnostico;
+window.enviarDiagnostico = enviarDiagnostico;
+})();</script>
+</body>
+</html>
