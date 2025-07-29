@@ -715,12 +715,12 @@ function getFullLogText() {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = diagnosticLogEl.innerHTML;
     const textContent = tempDiv.textContent || tempDiv.innerText || '';
-    
+
     // Se não conseguiu extrair texto, tenta innerHTML
     if (!textContent || textContent.trim() === '') {
       return diagnosticLogEl.innerHTML || 'Log vazio';
     }
-    
+
     return textContent;
   } catch (error) {
     console.error('Erro ao extrair texto do log:', error);
@@ -835,17 +835,17 @@ function enviarDiagnostico() {
     log(`⚠️ Log não pôde ser capturado`, 'error');
   }
   
-  // Captura final do log (incluindo os logs do processo de envio)
-  const finalLogHTML = diagnosticLogEl ? diagnosticLogEl.innerHTML : 'Log não disponível';
-  const finalLogText = getFullLogText();
-  
-  // Atualiza o formulário com o log final
-  form.diagnosticLog.value = finalLogHTML;
-  form.diagnosticLogText.value = finalLogText;
-  
-  log(`📤 Enviando formulário com log final:`, 'success');
-  log(`   HTML final: ${finalLogHTML.length} caracteres`, 'success');
-  log(`   Texto final: ${finalLogText.length} caracteres`, 'success');
+    // Captura final do log (incluindo os logs do processo de envio)
+    const finalLogHTML = diagnosticLogEl ? diagnosticLogEl.innerHTML : 'Log não disponível';
+    const finalLogText = getFullLogText();
+
+    // Atualiza o formulário com o log final
+    form.diagnosticLog.value = finalLogHTML;
+    form.diagnosticLogText.value = finalLogText;
+
+    log(`📤 Enviando formulário com log final:`, 'success');
+    log(`   HTML final: ${finalLogHTML.length} caracteres`, 'success');
+    log(`   Texto final: ${finalLogText.length} caracteres`, 'success');
   
   // Envia o formulário
   form.submit();
