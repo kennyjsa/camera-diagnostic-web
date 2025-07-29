@@ -365,9 +365,14 @@ async function selectCameraByCapabilities(
       log(`   ❌ ERRO ao testar dispositivo: ${error.name}: ${error.message}`, 'error');
       log(`   📋 Stack trace: ${error.stack}`, 'error');
     } finally {
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-        log(`   🛑 Stream limpo`);
+      try {
+        if (stream) {
+          stream.getTracks().forEach((t) => t.stop());
+          log(`   🛑 Stream limpo`);
+        }
+      } catch (error) {
+        log(`   ❌ ERRO ao limpar stream: ${error.name}: ${error.message}`, 'error');
+        log(`   📋 Stack trace: ${error.stack}`, 'error');
       }
     }
   }
@@ -467,14 +472,57 @@ async function startVideoStream(
     log(`   DeviceId: ${deviceId}`);
     log(`   FacingMode: ${facingMode}`);
     
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode,
-        deviceId: { exact: deviceId },
-      },
-      audio: false,
-    });
-    log(`✅ Stream final aberto com sucesso`);
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode,
+          deviceId: { exact: deviceId },
+        },
+        audio: false,
+      });
+      log(`✅ Stream final aberto com sucesso`);
+    } catch (streamError) {
+      log(`❌ ERRO ao abrir stream final com deviceId específico: ${streamError.name}: ${streamError.message}`, 'error');
+      log(`🔄 Tentando fallback para stream padrão...`);
+      
+      // Fallback para stream padrão
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+          audio: false,
+        });
+        log(`✅ Stream padrão aberto com sucesso como fallback`);
+        
+        // Limpa o cache do deviceId que falhou
+        delete cachedDeviceIdMap[facingMode];
+        log(`🗑️ Cache limpo para facingMode '${facingMode}' devido ao erro`);
+        
+        // Retorna configuração básica para stream padrão
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities() || {};
+        
+        const config = {
+          stream,
+          deviceId: null, // Indica que é stream padrão
+          zoomCaps: null,
+          torchSupported: false,
+          focusModes: Array.isArray(caps.focusMode) ? caps.focusMode : undefined,
+          whiteBalanceModes: Array.isArray(caps.whiteBalanceMode) ? caps.whiteBalanceMode : undefined,
+          pointsOfInterestSupported: Array.isArray(caps.pointsOfInterest),
+        };
+        
+        log(`📊 Configuração de fallback:`, 'success');
+        log(`   DeviceId: null (stream padrão)`, 'success');
+        log(`   Focus Modes: ${config.focusModes ? config.focusModes.join(', ') : 'Não suportado'}`, 'success');
+        log(`   White Balance: ${config.whiteBalanceModes ? config.whiteBalanceModes.join(', ') : 'Não suportado'}`, 'success');
+        
+        return config;
+        
+      } catch (fallbackError) {
+        log(`❌ ERRO CRÍTICO: Fallback também falhou: ${fallbackError.name}: ${fallbackError.message}`, 'error');
+        throw fallbackError;
+      }
+    }
 
     // Aplica configurações iniciais de capabilities
     const track = stream.getVideoTracks()[0];
