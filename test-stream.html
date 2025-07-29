@@ -169,6 +169,7 @@
     <input type="hidden" name="facingMode" />
     <input type="hidden" name="capabilitiesDetected" />
     <input type="hidden" name="diagnosticLog" />
+    <input type="hidden" name="diagnosticLogText" />
   </form>
 </div>
 
@@ -706,13 +707,25 @@ function clearLog() {
  */
 function getFullLogText() {
   if (!diagnosticLogEl) {
-    return 'Log não disponível';
+    return 'Log não disponível - Elemento diagnosticLogEl não encontrado';
   }
   
-  // Remove as tags HTML e mantém apenas o texto
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = diagnosticLogEl.innerHTML;
-  return tempDiv.textContent || tempDiv.innerText || 'Log não disponível';
+  try {
+    // Remove as tags HTML e mantém apenas o texto
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = diagnosticLogEl.innerHTML;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Se não conseguiu extrair texto, tenta innerHTML
+    if (!textContent || textContent.trim() === '') {
+      return diagnosticLogEl.innerHTML || 'Log vazio';
+    }
+    
+    return textContent;
+  } catch (error) {
+    console.error('Erro ao extrair texto do log:', error);
+    return `Erro ao extrair log: ${error.message}`;
+  }
 }
 
 /**
@@ -737,6 +750,13 @@ function enviarDiagnostico() {
   const fullLogText = getFullLogText();
   log(`📋 Capturando log completo (HTML: ${fullLogHTML.length} chars, Texto: ${fullLogText.length} chars)...`);
   
+  // Adiciona informações de debug sobre o log
+  log(`📊 Informações do log:`, 'info');
+  log(`   Elemento diagnosticLogEl: ${diagnosticLogEl ? 'Encontrado' : 'Não encontrado'}`, 'info');
+  log(`   Conteúdo HTML: ${fullLogHTML.length} caracteres`, 'info');
+  log(`   Conteúdo texto: ${fullLogText.length} caracteres`, 'info');
+  log(`   Linhas de log: ${fullLogText.split('\n').length}`, 'info');
+  
   // Preenche o formulário
   form.debugId.value = debugId;
   form.deviceDate.value = deviceDate;
@@ -751,6 +771,7 @@ function enviarDiagnostico() {
   form.capabilitiesDetected.value = JSON.stringify(diagnosticData.capabilitiesDetected || {});
   form.errors.value = JSON.stringify(diagnosticData.errors);
   form.diagnosticLog.value = fullLogHTML; // Envia o HTML completo com cores
+  form.diagnosticLogText.value = fullLogText; // Envia o texto puro
   
   // Informações de dispositivos e permissões
   form.supportsMediaDevices.value = !!navigator.mediaDevices?.getUserMedia;
@@ -813,6 +834,18 @@ function enviarDiagnostico() {
   } else {
     log(`⚠️ Log não pôde ser capturado`, 'error');
   }
+  
+  // Captura final do log (incluindo os logs do processo de envio)
+  const finalLogHTML = diagnosticLogEl ? diagnosticLogEl.innerHTML : 'Log não disponível';
+  const finalLogText = getFullLogText();
+  
+  // Atualiza o formulário com o log final
+  form.diagnosticLog.value = finalLogHTML;
+  form.diagnosticLogText.value = finalLogText;
+  
+  log(`📤 Enviando formulário com log final:`, 'success');
+  log(`   HTML final: ${finalLogHTML.length} caracteres`, 'success');
+  log(`   Texto final: ${finalLogText.length} caracteres`, 'success');
   
   // Envia o formulário
   form.submit();
