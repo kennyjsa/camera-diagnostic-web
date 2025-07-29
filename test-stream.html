@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Teste de Stream de Vídeo</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .video-container {
+      position: relative;
+      max-width: 100%;
+      margin: 20px 0;
+    }
+    #videoElement {
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      border: 2px solid #007bff;
+      border-radius: 8px;
+    }
+    .controls {
+      margin: 20px 0;
+      padding: 15px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .terminal {
+      background: rgb(33, 37, 41);
+      color: #0f0;
+      padding: 1rem;
+      height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      border-bottom-left-radius: 5px;
+      border-bottom-right-radius: 5px;
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+    .log {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 5px;
+      padding: 15px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+    }
+    .capability-item {
+      background: #e9ecef;
+      padding: 8px 12px;
+      margin: 5px 0;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+    .error {
+      color: #dc3545;
+    }
+    .success {
+      color: #28a745;
+    }
+    .info {
+      color: #17a2b8;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .btn-success {
+      background-color: #28a745;
+      border-color: #28a745;
+    }
+    
+    .btn-success:hover {
+      background-color: #218838;
+      border-color: #1e7e34;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-5">
+  <div class="text-center mb-4">
+    <h1><i class="bi bi-camera-video-fill"></i> Teste de Stream de Vídeo</h1>
+    <p class="text-muted">Teste a funcionalidade de seleção e configuração de câmera</p>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      <div class="video-container">
+        <video id="videoElement" autoplay muted playsinline></video>
+      </div>
+      
+      <div class="controls">
+        <div class="row">
+          <div class="col-md-6">
+            <h5>Configurações de Câmera</h5>
+            <div class="mb-3">
+              <label class="form-label">Facing Mode:</label>
+              <select id="facingMode" class="form-select">
+                <option value="environment">Environment (Traseira)</option>
+                <option value="user">User (Frontal)</option>
+              </select>
+            </div>
+            <div class="d-grid gap-2">
+              <button class="btn btn-primary" onclick="startStream()">
+                <i class="bi bi-camera-video-fill"></i> Iniciar Stream
+              </button>
+              <button class="btn btn-danger" onclick="stopStream()">
+                <i class="bi bi-stop-circle"></i> Parar Stream
+              </button>
+              <button class="btn btn-secondary" onclick="clearLog()">
+                <i class="bi bi-trash"></i> Limpar Log
+              </button>
+              <button class="btn btn-success" onclick="enviarDiagnostico()" id="enviarBtn" style="display:none">
+                <i class="bi bi-clipboard-check"></i> Enviar Diagnóstico
+              </button>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <h5>Capacidades Detectadas</h5>
+            <div id="capabilities"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal de Diagnóstico -->
+  <div class="card shadow-sm mb-3 mt-4">
+    <div class="card-header bg-dark text-white">
+      <i class="bi bi-terminal"></i> Terminal de Diagnóstico - Log Detalhado
+    </div>
+    <div class="terminal" id="diagnosticLog">🟢 Aguardando início do diagnóstico...</div>
+  </div>
+
+  <!-- Formulário de Diagnóstico -->
+  <form name="diagnostico" method="POST" action="/thankyou.html" netlify-honeypot="bot-field" data-netlify="true">
+    <p class="hidden">
+      <label>
+        Don't fill this out if you're human: <input name="bot-field" type="text" />
+      </label>
+    </p>
+    <input type="hidden" name="form-name" value="diagnostico" />
+    <input type="hidden" name="debugId" />
+    <input type="hidden" name="deviceDate" />
+    <input type="hidden" name="elapsedTimeMs" />
+    <input type="hidden" name="browserName" />
+    <input type="hidden" name="browserVersion" />
+    <input type="hidden" name="os" />
+    <input type="hidden" name="language" />
+    <input type="hidden" name="cameraCount" />
+    <input type="hidden" name="supportsMediaDevices" />
+    <input type="hidden" name="permissionsCamera" />
+    <input type="hidden" name="permissionsMicrophone" />
+    <input type="hidden" name="cameraInfo" />
+    <input type="hidden" name="errors" />
+    <input type="hidden" name="streamTestResults" />
+    <input type="hidden" name="selectedDeviceId" />
+    <input type="hidden" name="facingMode" />
+    <input type="hidden" name="capabilitiesDetected" />
+    <input type="hidden" name="diagnosticLog" />
+  </form>
+</div>
+
+<script>
+// Cache para deviceId por facingMode
+const cachedDeviceIdMap = {};
+
+// Tipos TypeScript (convertidos para JSDoc)
+/**
+ * @typedef {Object} ZoomCapabilities
+ * @property {number} min
+ * @property {number} max
+ * @property {number} step
+ * @property {number} current
+ */
+
+/**
+ * @typedef {Object} VideoStreamConfig
+ * @property {MediaStream} stream
+ * @property {string} [deviceId]
+ * @property {ZoomCapabilities|null} zoomCaps
+ * @property {boolean} torchSupported
+ * @property {string[]} [focusModes]
+ * @property {string[]} [whiteBalanceModes]
+ * @property {boolean} pointsOfInterestSupported
+ */
+
+let diagnosticLogEl, videoEl, capabilitiesEl;
+
+const log = (text, type = 'info') => {
+  if (!diagnosticLogEl) {
+    console.error('diagnosticLogEl não está disponível');
+    return;
+  }
+  const timestamp = new Date().toLocaleTimeString();
+  const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+  diagnosticLogEl.innerHTML += `<span class="${className}">[${timestamp}] ${text}</span>\n`;
+  diagnosticLogEl.scrollTop = diagnosticLogEl.scrollHeight;
+};
+
+// Função para inicializar os elementos
+function initializeElements() {
+  diagnosticLogEl = document.getElementById('diagnosticLog');
+  videoEl = document.getElementById('videoElement');
+  capabilitiesEl = document.getElementById('capabilities');
+  
+  if (!diagnosticLogEl) {
+    console.error('Elemento diagnosticLog não encontrado');
+  }
+  if (!videoEl) {
+    console.error('Elemento videoElement não encontrado');
+  }
+  if (!capabilitiesEl) {
+    console.error('Elemento capabilities não encontrado');
+  }
+}
+
+let currentStream = null;
+let startTime;
+let diagnosticData = {
+  streamTestResults: null,
+  selectedDeviceId: null,
+  facingMode: null,
+  capabilitiesDetected: null,
+  errors: []
+};
+
+/**
+ * Seleciona câmera baseada nas capacidades
+ * @param {MediaDeviceInfo[]} inputs
+ * @param {'user' | 'environment'} facingMode
+ * @returns {Promise<string|undefined>}
+ */
+async function selectCameraByCapabilities(
+  inputs,
+  facingMode
+) {
+  log(`🔍 INICIANDO SELEÇÃO DE CÂMERA`);
+  log(`📋 Parâmetros: facingMode=${facingMode}, totalDevices=${inputs.length}`);
+  
+  const candidates = [];
+
+  for (let i = 0; i < inputs.length; i++) {
+    const device = inputs[i];
+    let stream = null;
+    
+    log(`\n📷 TESTANDO DISPOSITIVO ${i + 1}/${inputs.length}`);
+    log(`   DeviceId: ${device.deviceId}`);
+    log(`   Label: ${device.label || 'Sem label'}`);
+    log(`   GroupId: ${device.groupId || 'Sem groupId'}`);
+    
+    try {
+      log(`   🔄 Abrindo stream de teste...`);
+      
+      // Abre stream curto para avaliar capabilities
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: device.deviceId } },
+        audio: false,
+      });
+      
+      log(`   ✅ Stream aberto com sucesso`);
+      
+      const track = stream.getVideoTracks()[0];
+      log(`   📹 Track obtida: ${track.label}`);
+      
+      const caps = track.getCapabilities() || {};
+      log(`   🔧 Capabilities obtidas: ${Object.keys(caps).length} propriedades`);
+      
+      // Log detalhado de todas as capabilities
+      for (const [key, value] of Object.entries(caps)) {
+        if (Array.isArray(value)) {
+          log(`   📋 ${key}: [${value.join(', ')}]`);
+        } else if (typeof value === 'object' && value !== null) {
+          log(`   📋 ${key}: ${JSON.stringify(value)}`);
+        } else {
+          log(`   📋 ${key}: ${value}`);
+        }
+      }
+      
+      let score = 0;
+      log(`   🎯 Iniciando avaliação de score...`);
+
+      // Verifica facingMode
+      if (!Array.isArray(caps.facingMode)) {
+        log(`   ❌ facingMode não é array: ${typeof caps.facingMode}`);
+        track.stop();
+        continue;
+      }
+      
+      if (!caps.facingMode.includes(facingMode)) {
+        log(`   ❌ facingMode '${facingMode}' não suportado. Disponíveis: [${caps.facingMode.join(', ')}]`);
+        track.stop();
+        continue;
+      }
+      
+      log(`   ✅ facingMode '${facingMode}' suportado`);
+
+      // Avalia zoom
+      if (caps.zoom) {
+        score += 1;
+        log(`   ✅ Zoom detectado: min=${caps.zoom.min}, max=${caps.zoom.max}, step=${caps.zoom.step} (+1 ponto)`);
+      } else {
+        log(`   ❌ Zoom não disponível`);
+      }
+      
+      // Avalia focus mode
+      if (Array.isArray(caps.focusMode)) {
+        log(`   📋 Focus modes disponíveis: [${caps.focusMode.join(', ')}]`);
+        if (caps.focusMode.includes('continuous')) {
+          score += 5;
+          log(`   ✅ Foco contínuo detectado (+5 pontos)`);
+        } else {
+          log(`   ❌ Foco contínuo não disponível`);
+        }
+      } else {
+        log(`   ❌ Focus modes não disponível`);
+      }
+      
+      // Avalia white balance
+      if (Array.isArray(caps.whiteBalanceMode)) {
+        log(`   📋 White balance modes disponíveis: [${caps.whiteBalanceMode.join(', ')}]`);
+        if (caps.whiteBalanceMode.includes('continuous')) {
+          score += 1;
+          log(`   ✅ White balance contínuo detectado (+1 ponto)`);
+        } else {
+          log(`   ❌ White balance contínuo não disponível`);
+        }
+      } else {
+        log(`   ❌ White balance modes não disponível`);
+      }
+      
+      // Avalia points of interest
+      if (Array.isArray(caps.pointsOfInterest)) {
+        score += 1;
+        log(`   ✅ Points of interest detectado: ${caps.pointsOfInterest.length} pontos (+1 ponto)`);
+      } else {
+        log(`   ❌ Points of interest não disponível`);
+      }
+
+      // Avalia zoom mínimo
+      if (caps.zoom?.min === 1) {
+        score += 1;
+        log(`   ✅ Zoom mínimo = 1 (+1 ponto)`);
+      } else if (caps.zoom) {
+        log(`   ❌ Zoom mínimo = ${caps.zoom.min} (não é 1)`);
+      }
+      
+      candidates.push({ deviceId: device.deviceId, score });
+      log(`   📊 SCORE FINAL: ${score} pontos`);
+      track.stop();
+      log(`   🛑 Track parada`);
+      
+    } catch (error) {
+      log(`   ❌ ERRO ao testar dispositivo: ${error.name}: ${error.message}`, 'error');
+      log(`   📋 Stack trace: ${error.stack}`, 'error');
+    } finally {
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        log(`   🛑 Stream limpo`);
+      }
+    }
+  }
+  
+  log(`\n📊 RESUMO DOS CANDIDATOS:`);
+  candidates.forEach((candidate, index) => {
+    log(`   ${index + 1}. DeviceId: ${candidate.deviceId} - Score: ${candidate.score}`);
+  });
+  
+  // Ordena e retorna o deviceId de maior score
+  candidates.sort((a, b) => b.score - a.score);
+  
+  if (candidates.length > 0) {
+    log(`\n🏆 MELHOR CANDIDATO SELECIONADO:`, 'success');
+    log(`   DeviceId: ${candidates[0].deviceId}`, 'success');
+    log(`   Score: ${candidates[0].score}`, 'success');
+    return candidates[0].deviceId;
+  }
+  
+  log(`\n❌ NENHUM DISPOSITIVO ADEQUADO ENCONTRADO`, 'error');
+  return undefined;
+}
+
+/**
+ * Inicia stream aplicando cache em memória e facingMode na seleção.
+ * @param {'user' | 'environment'} facingMode
+ * @returns {Promise<VideoStreamConfig>}
+ */
+async function startVideoStream(
+  facingMode = 'environment'
+) {
+  log(`\n🚀 INICIANDO STARTVIDEOSTREAM`);
+  log(`📋 Parâmetros: facingMode=${facingMode}`);
+  
+  try {
+    log(`🔄 Abrindo stream inicial com facingMode...`);
+    let stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode },
+      audio: false,
+    });
+    log(`✅ Stream inicial aberto com sucesso`);
+
+    log(`🔍 Enumerando dispositivos...`);
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+
+    log(`📱 Dispositivos encontrados:`);
+    log(`   Total: ${devices.length}`);
+    log(`   Vídeo: ${videoInputs.length}`);
+    log(`   Áudio: ${devices.filter(d => d.kind === 'audioinput').length}`);
+    log(`   Áudio output: ${devices.filter(d => d.kind === 'audiooutput').length}`);
+
+    // Log detalhado de todos os dispositivos de vídeo
+    videoInputs.forEach((device, index) => {
+      log(`   📷 ${index + 1}. ${device.label || 'Sem label'} (${device.deviceId})`);
+    });
+
+    // Verifica cache
+    let deviceId = cachedDeviceIdMap[facingMode];
+    log(`📋 Verificando cache para facingMode '${facingMode}': ${deviceId || 'não encontrado'}`);
+    
+    if (deviceId) {
+      const cachedDevice = videoInputs.find((d) => d.deviceId === deviceId);
+      if (cachedDevice) {
+        log(`✅ DeviceId cacheado ainda válido: ${deviceId}`);
+      } else {
+        log(`❌ DeviceId cacheado não encontrado nos dispositivos atuais`);
+        deviceId = null;
+      }
+    }
+
+    if (!deviceId) {
+      log(`🔄 Cache inválido ou não encontrado, iniciando seleção de câmera...`);
+      deviceId = await selectCameraByCapabilities(videoInputs, facingMode);
+      if (deviceId) {
+        cachedDeviceIdMap[facingMode] = deviceId;
+        log(`💾 DeviceId cacheado para ${facingMode}: ${deviceId}`, 'success');
+      } else {
+        log(`❌ Nenhum deviceId selecionado`, 'error');
+      }
+    } else {
+      log(`📋 Usando deviceId cacheado: ${deviceId}`);
+    }
+
+    if (!deviceId) {
+      log(`⚠️ Usando stream padrão sem deviceId específico`);
+      return {
+        stream,
+        zoomCaps: null,
+        torchSupported: false,
+        pointsOfInterestSupported: false,
+      };
+    }
+
+    // Abre stream final
+    log(`🎬 Abrindo stream final com deviceId específico...`);
+    log(`   DeviceId: ${deviceId}`);
+    log(`   FacingMode: ${facingMode}`);
+    
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode,
+        deviceId: { exact: deviceId },
+      },
+      audio: false,
+    });
+    log(`✅ Stream final aberto com sucesso`);
+
+    // Aplica configurações iniciais de capabilities
+    const track = stream.getVideoTracks()[0];
+    log(`📹 Track obtida: ${track.label}`);
+    
+    const caps = track.getCapabilities() || {};
+    log(`🔧 Capabilities finais obtidas: ${Object.keys(caps).length} propriedades`);
+    
+    // Log detalhado das capabilities finais
+    for (const [key, value] of Object.entries(caps)) {
+      if (Array.isArray(value)) {
+        log(`   📋 ${key}: [${value.join(', ')}]`);
+      } else if (typeof value === 'object' && value !== null) {
+        log(`   📋 ${key}: ${JSON.stringify(value)}`);
+      } else {
+        log(`   📋 ${key}: ${value}`);
+      }
+    }
+    
+    log(`🔧 Aplicando configurações avançadas...`);
+    const advanced = [];
+    
+    if (caps.zoom) {
+      advanced.push({ zoom: caps.zoom.min });
+      log(`🔍 Zoom configurado para: ${caps.zoom.min}`);
+    }
+    
+    if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+      advanced.push({ focusMode: 'continuous' });
+      log(`🎯 Foco contínuo ativado`);
+    }
+    
+    if (
+      Array.isArray(caps.whiteBalanceMode) &&
+      caps.whiteBalanceMode.includes('continuous')
+    ) {
+      advanced.push({ whiteBalanceMode: 'continuous' });
+      log(`⚖️ White balance contínuo ativado`);
+    }
+
+    const constraints = {
+      advanced: advanced.length ? advanced : undefined,
+      frameRate: caps.frameRate?.max,
+    };
+    
+    log(`📋 Constraints aplicadas: ${JSON.stringify(constraints)}`);
+    
+    await track.applyConstraints(constraints);
+    log(`✅ Constraints aplicadas com sucesso`);
+
+    const zoomCaps = caps.zoom
+      ? {
+          min: caps.zoom.min,
+          max: caps.zoom.max,
+          step: caps.zoom.step ?? 0.1,
+          current: caps.zoom.min,
+        }
+      : null;
+
+    const config = {
+      stream,
+      deviceId: caps.deviceId,
+      zoomCaps,
+      torchSupported: Boolean(caps.torch),
+      focusModes: Array.isArray(caps.focusMode) ? caps.focusMode : undefined,
+      whiteBalanceModes: Array.isArray(caps.whiteBalanceMode)
+        ? caps.whiteBalanceMode
+        : undefined,
+      pointsOfInterestSupported: Array.isArray(caps.pointsOfInterest),
+    };
+
+    log(`\n✅ STREAM INICIADO COM SUCESSO!`, 'success');
+    log(`📊 Configuração final:`, 'success');
+    log(`   DeviceId: ${config.deviceId}`, 'success');
+    log(`   Zoom: ${config.zoomCaps ? 'Suportado' : 'Não suportado'}`, 'success');
+    log(`   Torch: ${config.torchSupported ? 'Suportado' : 'Não suportado'}`, 'success');
+    log(`   Focus Modes: ${config.focusModes ? config.focusModes.join(', ') : 'Não suportado'}`, 'success');
+    log(`   White Balance: ${config.whiteBalanceModes ? config.whiteBalanceModes.join(', ') : 'Não suportado'}`, 'success');
+    log(`   Points of Interest: ${config.pointsOfInterestSupported ? 'Suportado' : 'Não suportado'}`, 'success');
+    
+    return config;
+    
+  } catch (error) {
+    log(`❌ ERRO em startVideoStream: ${error.name}: ${error.message}`, 'error');
+    log(`📋 Stack trace: ${error.stack}`, 'error');
+    throw error;
+  }
+}
+
+/**
+ * Inicia o stream de vídeo
+ */
+async function startStream() {
+  try {
+    if (!videoEl) {
+      console.error('Elemento videoElement não está disponível');
+      return;
+    }
+    
+    startTime = Date.now();
+    const facingMode = document.getElementById('facingMode').value;
+    diagnosticData.facingMode = facingMode;
+    
+    log(`\n🎥 INICIANDO TESTE DE STREAM`);
+    log(`📋 FacingMode selecionado: ${facingMode}`);
+    
+    const config = await startVideoStream(facingMode);
+    
+    // Conecta o stream ao elemento de vídeo
+    videoEl.srcObject = config.stream;
+    currentStream = config.stream;
+    
+    // Exibe as capacidades detectadas
+    displayCapabilities(config);
+    
+    // Coleta dados do diagnóstico
+    diagnosticData.streamTestResults = 'success';
+    diagnosticData.selectedDeviceId = config.deviceId;
+    diagnosticData.capabilitiesDetected = {
+      zoomCaps: config.zoomCaps,
+      torchSupported: config.torchSupported,
+      focusModes: config.focusModes,
+      whiteBalanceModes: config.whiteBalanceModes,
+      pointsOfInterestSupported: config.pointsOfInterestSupported
+    };
+    
+    log(`\n🎬 STREAM CONECTADO AO ELEMENTO DE VÍDEO`, 'success');
+    log(`📹 Elemento de vídeo atualizado com sucesso`, 'success');
+    log(`📊 Dados do diagnóstico coletados com sucesso`, 'success');
+    
+    // Mostra o botão de enviar diagnóstico
+    document.getElementById('enviarBtn').style.display = 'inline-block';
+    
+  } catch (error) {
+    log(`❌ ERRO ao iniciar stream: ${error.name}: ${error.message}`, 'error');
+    log(`📋 Stack trace: ${error.stack}`, 'error');
+    
+    diagnosticData.streamTestResults = 'error';
+    diagnosticData.errors.push(`Stream error: ${error.name}: ${error.message}`);
+    
+    // Mostra o botão de enviar diagnóstico mesmo com erro
+    document.getElementById('enviarBtn').style.display = 'inline-block';
+  }
+}
+
+/**
+ * Para o stream de vídeo
+ */
+function stopStream() {
+  if (!videoEl) {
+    console.error('Elemento videoElement não está disponível');
+    return;
+  }
+  
+  if (currentStream) {
+    log(`⏹️ Parando stream...`);
+    currentStream.getTracks().forEach(track => {
+      log(`   🛑 Parando track: ${track.label}`);
+      track.stop();
+    });
+    currentStream = null;
+    videoEl.srcObject = null;
+    log(`✅ Stream parado com sucesso`, 'success');
+  } else {
+    log(`⚠️ Nenhum stream ativo para parar`);
+  }
+}
+
+/**
+ * Limpa o log de diagnóstico
+ */
+function clearLog() {
+  if (diagnosticLogEl) {
+    diagnosticLogEl.innerHTML = '🟢 Log limpo. Clique em "Iniciar Stream" para testar.';
+    log(`🧹 Log de diagnóstico limpo`);
+  }
+}
+
+/**
+ * Obtém o log completo como texto
+ */
+function getFullLogText() {
+  if (!diagnosticLogEl) {
+    return 'Log não disponível';
+  }
+  
+  // Remove as tags HTML e mantém apenas o texto
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = diagnosticLogEl.innerHTML;
+  return tempDiv.textContent || tempDiv.innerText || 'Log não disponível';
+}
+
+/**
+ * Envia o diagnóstico via formulário Netlify
+ */
+function enviarDiagnostico() {
+  log(`\n📤 Enviando diagnóstico...`);
+  
+  const form = document.forms['diagnostico'];
+  const debugId = Date.now().toString();
+  const deviceDate = new Date().toISOString();
+  const elapsedTime = Date.now() - startTime;
+  
+  // Informações do navegador
+  const ua = navigator.userAgent;
+  const platform = navigator.platform;
+  const language = navigator.language;
+  const browserInfo = parseUserAgent(ua);
+  
+  // Captura todo o conteúdo do log de diagnóstico
+  const fullLogHTML = diagnosticLogEl ? diagnosticLogEl.innerHTML : 'Log não disponível';
+  const fullLogText = getFullLogText();
+  log(`📋 Capturando log completo (HTML: ${fullLogHTML.length} chars, Texto: ${fullLogText.length} chars)...`);
+  
+  // Preenche o formulário
+  form.debugId.value = debugId;
+  form.deviceDate.value = deviceDate;
+  form.elapsedTimeMs.value = elapsedTime;
+  form.browserName.value = browserInfo.name;
+  form.browserVersion.value = browserInfo.version;
+  form.os.value = platform;
+  form.language.value = language;
+  form.facingMode.value = diagnosticData.facingMode || '';
+  form.selectedDeviceId.value = diagnosticData.selectedDeviceId || '';
+  form.streamTestResults.value = diagnosticData.streamTestResults || '';
+  form.capabilitiesDetected.value = JSON.stringify(diagnosticData.capabilitiesDetected || {});
+  form.errors.value = JSON.stringify(diagnosticData.errors);
+  form.diagnosticLog.value = fullLogHTML; // Envia o HTML completo com cores
+  
+  // Informações de dispositivos e permissões
+  form.supportsMediaDevices.value = !!navigator.mediaDevices?.getUserMedia;
+  
+  // Coleta informações de dispositivos e permissões
+  (async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(d => d.kind === 'videoinput');
+      form.cameraCount.value = cameras.length;
+      
+      // Informações de permissões
+      try {
+        const [camPerm, micPerm] = await Promise.all([
+          navigator.permissions.query({ name: 'camera' }),
+          navigator.permissions.query({ name: 'microphone' })
+        ]);
+        form.permissionsCamera.value = camPerm.state;
+        form.permissionsMicrophone.value = micPerm.state;
+      } catch {
+        form.permissionsCamera.value = 'unsupported';
+        form.permissionsMicrophone.value = 'unsupported';
+      }
+      
+      // Informações detalhadas das câmeras
+      const cameraData = [];
+      for (let i = 0; i < cameras.length; i++) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { deviceId: cameras[i].deviceId } 
+          });
+          const track = stream.getVideoTracks()[0];
+          const data = {
+            deviceId: cameras[i].deviceId,
+            label: cameras[i].label,
+            capabilities: track.getCapabilities?.() || {},
+            settings: track.getSettings?.() || {},
+            constraints: track.getConstraints?.() || {},
+          };
+          stream.getTracks().forEach(t => t.stop());
+          cameraData.push(data);
+        } catch (e) {
+          diagnosticData.errors.push(`Erro na câmera ${i + 1}: ${e.message}`);
+        }
+      }
+      form.cameraInfo.value = JSON.stringify(cameraData);
+      
+    } catch (e) {
+      diagnosticData.errors.push(`Erro ao enumerar dispositivos: ${e.message}`);
+    }
+    
+      // Atualiza o formulário com os erros coletados
+  form.errors.value = JSON.stringify(diagnosticData.errors);
+  
+  // Verifica se o log foi capturado corretamente
+  if (fullLogHTML && fullLogHTML.length > 0) {
+    log(`✅ Log capturado com sucesso:`, 'success');
+    log(`   HTML: ${fullLogHTML.length} caracteres`, 'success');
+    log(`   Texto: ${fullLogText.length} caracteres`, 'success');
+  } else {
+    log(`⚠️ Log não pôde ser capturado`, 'error');
+  }
+  
+  // Envia o formulário
+  form.submit();
+  })();
+  
+  // Feedback visual
+  log(`✅ Diagnóstico enviado com sucesso!`, 'success');
+  log(`🔄 Redirecionando para página de agradecimento...`);
+  
+  // Esconde os botões
+  document.getElementById('enviarBtn').style.display = 'none';
+  
+  // Redireciona após 1 segundo
+  setTimeout(() => {
+    window.location.href = "/thankyou.html";
+  }, 1000);
+}
+
+/**
+ * Parse do User Agent para extrair informações do navegador
+ */
+function parseUserAgent(ua) {
+  let name = "Desconhecido", version = "0";
+  if (ua.includes("Chrome/")) {
+    name = "Chrome";
+    version = ua.split("Chrome/")[1].split(" ")[0];
+  } else if (ua.includes("Firefox/")) {
+    name = "Firefox";
+    version = ua.split("Firefox/")[1];
+  } else if (ua.includes("Safari/") && ua.includes("Version/")) {
+    name = "Safari";
+    version = ua.split("Version/")[1].split(" ")[0];
+  } else if (ua.includes("Edg/")) {
+    name = "Edge";
+    version = ua.split("Edg/")[1];
+  }
+  return { name, version };
+}
+
+/**
+ * Exibe as capacidades detectadas
+ * @param {VideoStreamConfig} config
+ */
+function displayCapabilities(config) {
+  if (!capabilitiesEl) {
+    console.error('Elemento capabilities não está disponível');
+    return;
+  }
+  
+  let html = '';
+  
+  if (config.zoomCaps) {
+    html += `<div class="capability-item">
+      <strong>🔍 Zoom:</strong> ${config.zoomCaps.min} - ${config.zoomCaps.max} (step: ${config.zoomCaps.step})
+    </div>`;
+  }
+  
+  if (config.focusModes) {
+    html += `<div class="capability-item">
+      <strong>🎯 Focus Modes:</strong> ${config.focusModes.join(', ')}
+    </div>`;
+  }
+  
+  if (config.whiteBalanceModes) {
+    html += `<div class="capability-item">
+      <strong>⚖️ White Balance:</strong> ${config.whiteBalanceModes.join(', ')}
+    </div>`;
+  }
+  
+  html += `<div class="capability-item">
+    <strong>🔦 Torch:</strong> ${config.torchSupported ? '✅ Suportado' : '❌ Não suportado'}
+  </div>`;
+  
+  html += `<div class="capability-item">
+    <strong>🎯 Points of Interest:</strong> ${config.pointsOfInterestSupported ? '✅ Suportado' : '❌ Não suportado'}
+  </div>`;
+  
+  capabilitiesEl.innerHTML = html;
+}
+
+// Limpa o log ao carregar a página
+window.addEventListener('load', () => {
+  initializeElements();
+  
+  if (diagnosticLogEl) {
+    diagnosticLogEl.innerHTML = '🟢 Página carregada. Clique em "Iniciar Stream" para testar.';
+    log(`🚀 PÁGINA DE TESTE CARREGADA`);
+    log(`📋 Funcionalidades disponíveis:`);
+    log(`   • Seleção inteligente de câmera por capabilities`);
+    log(`   • Cache de deviceId por facing mode`);
+    log(`   • Log detalhado de todo o processo`);
+    log(`   • Exibição de capacidades detectadas`);
+    log(`   • Teste de diferentes facing modes`);
+  }
+});
+
+// Limpa o stream quando a página é fechada
+window.addEventListener('beforeunload', () => {
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+  }
+});
+</script>
+</body>
+</html> 
