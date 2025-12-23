@@ -297,20 +297,8 @@
         document.getElementById('deviceKey').textContent = key;
         document.getElementById('userAgentDisplay').textContent = info.userAgent;
 
-        // Lógica de persistência da correção de cor
-        const colorFixToggle = document.getElementById('colorFixToggle');
-        const savedState = localStorage.getItem('needsColorFix') === 'true';
-
-        colorFixToggle.checked = savedState;
-
-        colorFixToggle.addEventListener('change', (e) => {
-          localStorage.setItem('needsColorFix', e.target.checked);
-          log(`🎨 Correção de cor alterada para: ${e.target.checked}`);
-        });
-
         log(`📱 Dispositivo identificado: ${info.model}`);
         log(`🔑 Chave gerada: ${key}`);
-        log(`🎨 Estado atual da correção de cor: ${savedState}`);
       }
 
       window.iniciarDiagnostico = iniciarDiagnostico;
