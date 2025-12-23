@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -11,6 +12,7 @@
       background-color: #f8f9fa;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+
     .terminal {
       background: rgb(33, 37, 41);
       color: #0f0;
@@ -29,201 +31,295 @@
     }
   </style>
 </head>
+
 <body>
 
-<div class="container py-5" style="max-width: 600px;">
-  <div class="text-center mb-4">
-    <h1><i class="bi bi-camera-video-fill"></i> Diagnóstico de Câmera</h1>
-    <p class="text-muted">Verifique o funcionamento da sua câmera, navegador e permissões.</p>
-  </div>
-
-  <div class="card shadow-sm mb-3">
-    <div class="card-header bg-dark text-white">
-      <i class="bi bi-terminal"></i> Terminal de Diagnóstico
+  <div class="container py-5" style="max-width: 600px;">
+    <div class="text-center mb-4">
+      <h1><i class="bi bi-camera-video-fill"></i> Diagnóstico de Câmera</h1>
+      <p class="text-muted">Verifique o funcionamento da sua câmera, navegador e permissões.</p>
     </div>
-    <div class="terminal" id="log">🟢 Aguardando início do diagnóstico...</div>
-  </div>
 
-  <div class="d-grid gap-3">
-    <button class="btn btn-primary btn-lg" id="iniciarBtn" onclick="iniciarDiagnostico()">
-      <i class="bi bi-camera-video-fill me-1"></i> Iniciar Diagnóstico
-    </button>
-  </div>
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-terminal"></i> Terminal de Diagnóstico
+      </div>
+      <div class="terminal" id="log">🟢 Aguardando início do diagnóstico...</div>
+    </div>
 
-  <form name="diagnostico" method="POST" action="/thankyou.html" netlify-honeypot="bot-field" data-netlify="true">
-    <p class="hidden">
-      <label>
-        Don’t fill this out if you’re human: <input name="bot-field" type="text" />
-      </label>
-    </p>
-    <input type="hidden" name="form-name" value="diagnostico" />
-    <input type="hidden" name="debugId" />
-    <input type="hidden" name="deviceDate" />
-    <input type="hidden" name="elapsedTimeMs" />
-    <input type="hidden" name="browserName" />
-    <input type="hidden" name="browserVersion" />
-    <input type="hidden" name="os" />
-    <input type="hidden" name="language" />
-    <input type="hidden" name="cameraCount" />
-    <input type="hidden" name="supportsMediaDevices" />
-    <input type="hidden" name="permissionsCamera" />
-    <input type="hidden" name="permissionsMicrophone" />
-    <input type="hidden" name="cameraInfo" />
-    <input type="hidden" name="errors" />
-    
+    <!-- Device Info Card -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-phone"></i> Identificação do Dispositivo
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <strong>Modelo:</strong> <span id="deviceModel">Detectando...</span>
+        </div>
+        <div class="mb-2">
+          <strong>Chave Whitelist:</strong> <code id="deviceKey" class="bg-light p-1 rounded">...</code>
+        </div>
+        <div class="mb-3">
+          <strong>User-Agent:</strong> <small class="text-muted d-block" id="userAgentDisplay"
+            style="word-break: break-all;">...</small>
+        </div>
+      </div>
+    </div>
 
-    <div class="d-grid mt-3">
-      <button class="btn btn-success btn-lg" type="submit" id="enviarBtn" onclick="enviarDiagnostico()" style="display:none">
-        <i class="bi bi-clipboard-check me-1"></i> Enviar Diagnóstico
+    <div class="d-grid gap-3">
+      <button class="btn btn-primary btn-lg" id="iniciarBtn" onclick="iniciarDiagnostico()">
+        <i class="bi bi-camera-video-fill me-1"></i> Iniciar Diagnóstico
       </button>
     </div>
-  </form>
-</div>
 
-<script>
-// toda a lógica JS mantida aqui
-(function() {
-const logEl = document.getElementById('log');
-const enviarBtn = document.getElementById('enviarBtn');
-const iniciarBtn = document.getElementById('iniciarBtn');
-const form = document.forms['diagnostico'];
-let startTime;
+    <form name="diagnostico" method="POST" action="/thankyou.html" netlify-honeypot="bot-field" data-netlify="true">
+      <p class="hidden">
+        <label>
+          Don’t fill this out if you’re human: <input name="bot-field" type="text" />
+        </label>
+      </p>
+      <input type="hidden" name="form-name" value="diagnostico" />
+      <input type="hidden" name="debugId" />
+      <input type="hidden" name="deviceDate" />
+      <input type="hidden" name="elapsedTimeMs" />
+      <input type="hidden" name="browserName" />
+      <input type="hidden" name="browserVersion" />
+      <input type="hidden" name="os" />
+      <input type="hidden" name="language" />
+      <input type="hidden" name="cameraCount" />
+      <input type="hidden" name="supportsMediaDevices" />
+      <input type="hidden" name="permissionsCamera" />
+      <input type="hidden" name="permissionsMicrophone" />
+      <input type="hidden" name="cameraInfo" />
+      <input type="hidden" name="errors" />
 
-const log = (text) => {
-  logEl.textContent += `\n${text}`;
-  logEl.scrollTop = logEl.scrollHeight;
-};
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      <div class="d-grid mt-3">
+        <button class="btn btn-success btn-lg" type="submit" id="enviarBtn" onclick="enviarDiagnostico()"
+          style="display:none">
+          <i class="bi bi-clipboard-check me-1"></i> Enviar Diagnóstico
+        </button>
+      </div>
+    </form>
+  </div>
 
-async function iniciarDiagnostico() {
-  startTime = Date.now();
-  iniciarBtn.disabled = true;
-  logEl.textContent = "⏳ Iniciando diagnóstico...\n";
-  const errors = [];
+  <script>
+    // toda a lógica JS mantida aqui
+    (function () {
+      const logEl = document.getElementById('log');
+      const enviarBtn = document.getElementById('enviarBtn');
+      const iniciarBtn = document.getElementById('iniciarBtn');
+      const form = document.forms['diagnostico'];
+      let startTime;
 
-  const debugId = Date.now().toString();
-  const deviceDate = new Date().toISOString();
+      const log = (text) => {
+        logEl.textContent += `\n${text}`;
+        logEl.scrollTop = logEl.scrollHeight;
+      };
 
-  log("🔍 Coletando informações do navegador...");
-  await delay(300);
-  const ua = navigator.userAgent;
-  const platform = navigator.platform;
-  const language = navigator.language;
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  const browserInfo = parseUserAgent(ua);
-  form.browserName.value = browserInfo.name;
-  form.browserVersion.value = browserInfo.version;
-  form.os.value = platform;
-  form.language.value = language;
-  form.debugId.value = debugId;
-  form.deviceDate.value = deviceDate;
-  log("✅ Navegador: " + browserInfo.name + " " + browserInfo.version);
+      async function iniciarDiagnostico() {
+        startTime = Date.now();
+        iniciarBtn.disabled = true;
+        logEl.textContent = "⏳ Iniciando diagnóstico...\n";
+        const errors = [];
 
-  const supports = !!navigator.mediaDevices?.getUserMedia;
-  form.supportsMediaDevices.value = supports;
-  if (!supports) {
-    errors.push("Navegador não suporta mediaDevices.getUserMedia");
-    log("❌ Navegador não suporta getUserMedia.");
-  }
+        const debugId = Date.now().toString();
+        const deviceDate = new Date().toISOString();
 
-  try {
-    log("🎥 Solicitando permissão de câmera...");
-    await navigator.mediaDevices.getUserMedia({ video: true });
-    log("✅ Permissão concedida.");
-  } catch (e) {
-    log("❌ Erro ao acessar câmera: " + e.message);
-    errors.push("Erro ao acessar câmera: " + e.message);
-  }
+        log("🔍 Coletando informações do navegador...");
+        await delay(300);
+        const ua = navigator.userAgent;
+        const platform = navigator.platform;
+        const language = navigator.language;
 
-  try {
-    const [camPerm, micPerm] = await Promise.all([
-      navigator.permissions.query({ name: 'camera' }),
-      navigator.permissions.query({ name: 'microphone' })
-    ]);
-    form.permissionsCamera.value = camPerm.state;
-    form.permissionsMicrophone.value = micPerm.state;
-    log(`📋 Permissões: câmera=${camPerm.state}, microfone=${micPerm.state}`);
-  } catch {
-    form.permissionsCamera.value = 'unsupported';
-    form.permissionsMicrophone.value = 'unsupported';
-    log("⚠️ Permissões não suportadas.");
-  }
+        const browserInfo = parseUserAgent(ua);
+        form.browserName.value = browserInfo.name;
+        form.browserVersion.value = browserInfo.version;
+        form.os.value = platform;
+        form.language.value = language;
+        form.debugId.value = debugId;
+        form.deviceDate.value = deviceDate;
+        log("✅ Navegador: " + browserInfo.name + " " + browserInfo.version);
 
-  let cameraData = [];
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = devices.filter(d => d.kind === 'videoinput');
-    form.cameraCount.value = cameras.length;
-    log(`🔎 ${cameras.length} câmera(s) detectada(s).`);
+        const supports = !!navigator.mediaDevices?.getUserMedia;
+        form.supportsMediaDevices.value = supports;
+        if (!supports) {
+          errors.push("Navegador não suporta mediaDevices.getUserMedia");
+          log("❌ Navegador não suporta getUserMedia.");
+        }
 
-    for (let i = 0; i < cameras.length; i++) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: cameras[i].deviceId } });
-        const track = stream.getVideoTracks()[0];
-        const data = {
-          deviceId: cameras[i].deviceId,
-          label: cameras[i].label,
-          capabilities: track.getCapabilities?.() || {},
-          settings: track.getSettings?.() || {},
-          constraints: track.getConstraints?.() || {},
-        };
-        stream.getTracks().forEach(t => t.stop());
-        cameraData.push(data);
-        log(`📷 ${i + 1}: ${data.label || 'Sem nome'}`);
-      } catch (e) {
-        errors.push(`Erro na câmera ${i + 1}: ` + e.message);
-        log(`❌ Erro na câmera ${i + 1}: ` + e.message);
+        try {
+          log("🎥 Solicitando permissão de câmera...");
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          log("✅ Permissão concedida.");
+        } catch (e) {
+          log("❌ Erro ao acessar câmera: " + e.message);
+          errors.push("Erro ao acessar câmera: " + e.message);
+        }
+
+        try {
+          const [camPerm, micPerm] = await Promise.all([
+            navigator.permissions.query({ name: 'camera' }),
+            navigator.permissions.query({ name: 'microphone' })
+          ]);
+          form.permissionsCamera.value = camPerm.state;
+          form.permissionsMicrophone.value = micPerm.state;
+          log(`📋 Permissões: câmera=${camPerm.state}, microfone=${micPerm.state}`);
+        } catch {
+          form.permissionsCamera.value = 'unsupported';
+          form.permissionsMicrophone.value = 'unsupported';
+          log("⚠️ Permissões não suportadas.");
+        }
+
+        let cameraData = [];
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const cameras = devices.filter(d => d.kind === 'videoinput');
+          form.cameraCount.value = cameras.length;
+          log(`🔎 ${cameras.length} câmera(s) detectada(s).`);
+
+          for (let i = 0; i < cameras.length; i++) {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: cameras[i].deviceId } });
+              const track = stream.getVideoTracks()[0];
+              const data = {
+                deviceId: cameras[i].deviceId,
+                label: cameras[i].label,
+                capabilities: track.getCapabilities?.() || {},
+                settings: track.getSettings?.() || {},
+                constraints: track.getConstraints?.() || {},
+              };
+              stream.getTracks().forEach(t => t.stop());
+              cameraData.push(data);
+              log(`📷 ${i + 1}: ${data.label || 'Sem nome'}`);
+            } catch (e) {
+              errors.push(`Erro na câmera ${i + 1}: ` + e.message);
+              log(`❌ Erro na câmera ${i + 1}: ` + e.message);
+            }
+          }
+
+          form.cameraInfo.value = JSON.stringify(cameraData);
+        } catch (e) {
+          errors.push("Erro ao enumerar dispositivos: " + e.message);
+          log("❌ Erro ao enumerar dispositivos.");
+        }
+
+        form.elapsedTimeMs.value = Date.now() - startTime;
+        form.errors.value = JSON.stringify(errors);
+
+        if (errors.length > 0) {
+          log("\n⚠️ Diagnóstico concluído com erros.");
+        } else {
+          log("\n✅ Diagnóstico concluído com sucesso.");
+        }
+
+        enviarBtn.style.display = 'inline-block';
       }
-    }
 
-    form.cameraInfo.value = JSON.stringify(cameraData);
-  } catch (e) {
-    errors.push("Erro ao enumerar dispositivos: " + e.message);
-    log("❌ Erro ao enumerar dispositivos.");
-  }
+      function enviarDiagnostico() {
+        log("\n📤 Enviando diagnóstico...");
+        form.submit();
+        iniciarBtn.style.display = 'none';
+        enviarBtn.style.display = 'none';
+        log("✅ Enviado! Redirecionando...");
+        setTimeout(() => window.location.href = "/thankyou.html", 1000);
+      }
 
-  form.elapsedTimeMs.value = Date.now() - startTime;
-  form.errors.value = JSON.stringify(errors);
+      function parseUserAgent(ua) {
+        let name = "Desconhecido", version = "0";
+        if (ua.includes("Chrome/")) {
+          name = "Chrome";
+          version = ua.split("Chrome/")[1].split(" ")[0];
+        } else if (ua.includes("Firefox/")) {
+          name = "Firefox";
+          version = ua.split("Firefox/")[1];
+        } else if (ua.includes("Safari/") && ua.includes("Version/")) {
+          name = "Safari";
+          version = ua.split("Version/")[1].split(" ")[0];
+        } else if (ua.includes("Edg/")) {
+          name = "Edge";
+          version = ua.split("Edg/")[1];
+        }
+        return { name, version };
+      }
 
-  if (errors.length > 0) {
-    log("\n⚠️ Diagnóstico concluído com erros.");
-  } else {
-    log("\n✅ Diagnóstico concluído com sucesso.");
-  }
+      // Função para extrair informações do dispositivo
+      function extractDeviceInfo() {
+        const ua = navigator.userAgent;
+        const platform = navigator.platform;
+        let model = "Desktop/Desconhecido";
 
-  enviarBtn.style.display = 'inline-block';
-}
+        // Heurística simples para detectar modelo Android no User-Agent
+        // Padrão comum: "Android ...; <Modelo> Build/..."
+        if (ua.includes("Android")) {
+          const match = ua.match(/Android.*?; (.*?) Build\//);
+          if (match && match[1]) {
+            model = match[1].trim();
+          } else {
+            model = "Android Generic";
+          }
+        } else if (ua.includes("iPhone") || ua.includes("iPad")) {
+          model = "iOS Device";
+        }
 
-function enviarDiagnostico() {
-  log("\n📤 Enviando diagnóstico...");
-  form.submit();
-  iniciarBtn.style.display = 'none';
-  enviarBtn.style.display = 'none';
-  log("✅ Enviado! Redirecionando...");
-  setTimeout(() => window.location.href = "/thankyou.html", 1000);
-}
+        const { name: browserName, version: browserVersion } = parseUserAgent(ua);
+        const majorVersion = browserVersion.split('.')[0];
 
-function parseUserAgent(ua) {
-  let name = "Desconhecido", version = "0";
-  if (ua.includes("Chrome/")) {
-    name = "Chrome";
-    version = ua.split("Chrome/")[1].split(" ")[0];
-  } else if (ua.includes("Firefox/")) {
-    name = "Firefox";
-    version = ua.split("Firefox/")[1];
-  } else if (ua.includes("Safari/") && ua.includes("Version/")) {
-    name = "Safari";
-    version = ua.split("Version/")[1].split(" ")[0];
-  } else if (ua.includes("Edg/")) {
-    name = "Edge";
-    version = ua.split("Edg/")[1];
-  }
-  return { name, version };
-}
+        return {
+          userAgent: ua,
+          platform: platform,
+          model: model,
+          browserName: browserName,
+          browserVersion: browserVersion,
+          majorVersion: majorVersion
+        };
+      }
 
-window.iniciarDiagnostico = iniciarDiagnostico;
-window.enviarDiagnostico = enviarDiagnostico;
-})();</script>
+      // Função para gerar a chave de whitelist
+      function generateDeviceKey(info) {
+        // Remove espaços do modelo e converte para minúsculas para a chave
+        const cleanModel = info.model.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+        // Formato: <modelo>-chrome-<versao-major>
+        // Nota: Usando 'chrome' fixo se for Chrome ou WebView baseado em Chromium, 
+        // mas adaptando se for outro navegador.
+        const browserKey = info.browserName.toLowerCase();
+        return `${cleanModel}-${browserKey}-${info.majorVersion}`;
+      }
+
+      // Inicializa a seção de informações do dispositivo
+      function initDeviceInfo() {
+        const info = extractDeviceInfo();
+        const key = generateDeviceKey(info);
+
+        document.getElementById('deviceModel').textContent = info.model;
+        document.getElementById('deviceKey').textContent = key;
+        document.getElementById('userAgentDisplay').textContent = info.userAgent;
+
+        // Lógica de persistência da correção de cor
+        const colorFixToggle = document.getElementById('colorFixToggle');
+        const savedState = localStorage.getItem('needsColorFix') === 'true';
+
+        colorFixToggle.checked = savedState;
+
+        colorFixToggle.addEventListener('change', (e) => {
+          localStorage.setItem('needsColorFix', e.target.checked);
+          log(`🎨 Correção de cor alterada para: ${e.target.checked}`);
+        });
+
+        log(`📱 Dispositivo identificado: ${info.model}`);
+        log(`🔑 Chave gerada: ${key}`);
+        log(`🎨 Estado atual da correção de cor: ${savedState}`);
+      }
+
+      window.iniciarDiagnostico = iniciarDiagnostico;
+      window.enviarDiagnostico = enviarDiagnostico;
+
+      // Executa inicialização ao carregar
+      initDeviceInfo();
+
+    })();</script>
 </body>
+
 </html>
