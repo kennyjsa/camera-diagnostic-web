@@ -237,7 +237,7 @@
     </div>
 
     <!-- Formulário Netlify -->
-    <form name="colorDiagnostic" method="POST" action="/thankyou.html" netlify-honeypot="bot-field" data-netlify="true">
+    <form name="colorDiagnostic" method="POST" netlify-honeypot="bot-field" data-netlify="true">
       <p class="hidden">
         <label>
           Don't fill this out if you're human: <input name="bot-field" type="text" />
@@ -460,7 +460,7 @@
     }
 
     // Envia diagnóstico
-    function submitDiagnostic() {
+    async function submitDiagnostic() {
       const form = document.forms['colorDiagnostic'];
       const debugId = Date.now().toString();
       const deviceDate = new Date().toISOString();
@@ -481,8 +481,34 @@
       form.userAgent.value = ua;
       form.cameraTests.value = JSON.stringify(diagnosticData.tests);
 
-      // Envia
-      form.submit();
+      // Desabilita botão durante envio
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
+
+      try {
+        // Cria FormData do formulário
+        const formData = new FormData(form);
+        
+        // Envia via fetch para o Netlify processar
+        const response = await fetch('/', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          // Sucesso - redireciona para página de agradecimento
+          window.location.href = "/thankyou.html";
+        } else {
+          throw new Error('Erro ao enviar formulário');
+        }
+      } catch (error) {
+        console.error('Erro ao enviar:', error);
+        alert('Erro ao enviar diagnóstico. Por favor, tente novamente.');
+        submitBtn.disabled = false;
+        const icon = '<i class="bi bi-send-fill"></i>';
+        submitBtn.innerHTML = icon + ' Enviar Diagnóstico';
+      }
     }
 
     // Reinicia wizard
@@ -553,4 +579,3 @@
 </body>
 
 </html>
-
