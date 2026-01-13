@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Análise de Resultados - Diagnóstico de Cores</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .upload-area {
+      border: 2px dashed #dee2e6;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      background: white;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover {
+      border-color: #007bff;
+      background: #f8f9ff;
+    }
+
+    .upload-area.dragover {
+      border-color: #007bff;
+      background: #e7f3ff;
+    }
+
+    .stats-card {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .stats-card .stat-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .camera-test-card {
+      margin-bottom: 30px;
+    }
+
+    .photo-comparison {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+
+    .photo-panel {
+      flex: 1;
+      min-width: 250px;
+      max-width: 400px;
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .photo-panel img {
+      width: 100%;
+      height: auto;
+      border-radius: 4px;
+      display: block;
+    }
+
+    .photo-panel.selected {
+      border: 3px solid #28a745;
+      background: #f0fff4;
+    }
+
+    .badge-problem {
+      background-color: #dc3545;
+    }
+
+    .badge-ok {
+      background-color: #28a745;
+    }
+
+    .badge-warning {
+      background-color: #ffc107;
+      color: #000;
+    }
+
+    .json-viewer {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 15px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .img-thumbnail {
+      transition: transform 0.2s;
+    }
+
+    .img-thumbnail:hover {
+      transform: scale(1.05);
+    }
+
+    .modal-image {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container py-5">
+    <div class="text-center mb-4">
+      <h1><i class="bi bi-palette-fill text-danger"></i> Análise de Resultados - Diagnóstico de Cores</h1>
+      <p class="text-muted">Carregue o JSON do teste de cores para visualizar estatísticas, fotos capturadas e identificar problemas</p>
+    </div>
+
+    <!-- Upload Section -->
+    <div id="uploadSection" class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-upload"></i> Carregar Dados
+      </div>
+      <div class="card-body">
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <i class="bi bi-cloud-upload display-4 text-muted mb-3"></i>
+          <h5>Arraste um arquivo JSON aqui ou clique para selecionar</h5>
+          <p class="text-muted mb-0">Ou cole o JSON diretamente no campo abaixo</p>
+        </div>
+        <input type="file" id="fileInput" accept=".json,application/json" class="hidden" />
+        <div class="mt-3">
+          <label for="jsonInput" class="form-label">Ou cole o JSON aqui:</label>
+          <textarea class="form-control" id="jsonInput" rows="8" placeholder='Cole o JSON aqui, por exemplo: {"cameraTests": [...], "browserName": "...", ...}'></textarea>
+        </div>
+        <div class="mt-3 text-center">
+          <button class="btn btn-primary btn-lg" onclick="loadData()">
+            <i class="bi bi-play-fill me-1"></i> Analisar Dados
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis Section -->
+    <div id="analysisSection" class="hidden">
+      <!-- Statistics -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card stats-card shadow-sm">
+            <div class="text-primary">
+              <i class="bi bi-camera-video display-6"></i>
+            </div>
+            <div class="stat-value text-primary" id="totalCameras">0</div>
+            <div class="text-muted">Câmeras Testadas</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card shadow-sm">
+            <div class="text-danger">
+              <i class="bi bi-exclamation-triangle display-6"></i>
+            </div>
+            <div class="stat-value text-danger" id="problemsCount">0</div>
+            <div class="text-muted">Problemas Encontrados</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card shadow-sm">
+            <div class="text-warning">
+              <i class="bi bi-arrow-left-right display-6"></i>
+            </div>
+            <div class="stat-value text-warning" id="invertedVideoCount">0</div>
+            <div class="text-muted">Vídeos Invertidos</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card shadow-sm">
+            <div class="text-success">
+              <i class="bi bi-check-circle display-6"></i>
+            </div>
+            <div class="stat-value text-success" id="normalCount">0</div>
+            <div class="text-muted">Câmeras Normais</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Device Info -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+          <i class="bi bi-info-circle"></i> Informações do Dispositivo
+        </div>
+        <div class="card-body" id="deviceInfo"></div>
+      </div>
+
+      <!-- Camera Tests -->
+      <div id="cameraTestsSection"></div>
+
+      <!-- Raw JSON -->
+      <div class="card shadow-sm mt-4">
+        <div class="card-header bg-secondary text-white">
+          <i class="bi bi-code-slash"></i> JSON Bruto
+          <button class="btn btn-sm btn-light float-end" onclick="copyJSON()">
+            <i class="bi bi-clipboard"></i> Copiar
+          </button>
+        </div>
+        <div class="card-body">
+          <pre class="json-viewer" id="rawJSON"></pre>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="text-center mt-4">
+        <button class="btn btn-outline-primary" onclick="resetAnalysis()">
+          <i class="bi bi-arrow-clockwise me-1"></i> Analisar Outro Arquivo
+        </button>
+        <button class="btn btn-outline-success" onclick="exportReport()">
+          <i class="bi bi-download me-1"></i> Exportar Relatório
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let analysisData = null;
+
+    // Upload area drag and drop
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        readFile(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        readFile(e.target.files[0]);
+      }
+    });
+
+    function readFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('jsonInput').value = e.target.result;
+      };
+      reader.readAsText(file);
+    }
+
+    function loadData() {
+      const jsonInput = document.getElementById('jsonInput').value.trim();
+      
+      if (!jsonInput) {
+        alert('Por favor, carregue um arquivo JSON ou cole o JSON no campo de texto.');
+        return;
+      }
+
+      try {
+        // Tenta parsear o JSON
+        let data = JSON.parse(jsonInput);
+
+        // Se o JSON tem JsonData (formato completo), usa ele
+        if (data.JsonData) {
+          if (typeof data.JsonData === 'string') {
+            data = JSON.parse(data.JsonData);
+          } else {
+            data = data.JsonData;
+          }
+        } 
+        // Se não tem JsonData mas tem cameraTests como string, parseia
+        else if (typeof data.cameraTests === 'string') {
+          data.cameraTests = JSON.parse(data.cameraTests);
+        }
+
+        analysisData = data;
+        displayAnalysis(data);
+      } catch (error) {
+        alert('Erro ao processar JSON: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function displayAnalysis(data) {
+      // Esconde upload, mostra análise
+      document.getElementById('uploadSection').classList.add('hidden');
+      document.getElementById('analysisSection').classList.remove('hidden');
+
+      // Estatísticas
+      const tests = data.cameraTests || [];
+      const totalCameras = tests.length;
+      const invertedVideo = tests.filter(t => t.videoAppearance === 'inverted').length;
+      const correctSwapped = tests.filter(t => t.correctPhoto === 'swapped').length;
+      const problems = invertedVideo + correctSwapped;
+      const normal = tests.filter(t => 
+        t.videoAppearance === 'normal' && t.correctPhoto === 'original' && !t.error
+      ).length;
+
+      document.getElementById('totalCameras').textContent = totalCameras;
+      document.getElementById('problemsCount').textContent = problems;
+      document.getElementById('invertedVideoCount').textContent = invertedVideo;
+      document.getElementById('normalCount').textContent = normal;
+
+      // Informações do dispositivo
+      const deviceInfoHtml = `
+        <div class="row">
+          <div class="col-md-6">
+            <strong>Navegador:</strong> ${data.browserName || 'N/A'} ${data.browserVersion || ''}<br>
+            <strong>Sistema Operacional:</strong> ${data.os || 'N/A'}<br>
+            <strong>Idioma:</strong> ${data.language || 'N/A'}
+          </div>
+          <div class="col-md-6">
+            <strong>Data/Hora:</strong> ${data.deviceDate ? new Date(data.deviceDate).toLocaleString('pt-BR') : 'N/A'}<br>
+            <strong>Debug ID:</strong> <code>${data.debugId || 'N/A'}</code><br>
+            <strong>User Agent:</strong> <small class="text-muted">${data.userAgent || 'N/A'}</small>
+          </div>
+        </div>
+      `;
+      document.getElementById('deviceInfo').innerHTML = deviceInfoHtml;
+
+      // Galeria de todas as fotos
+      const allPhotos = tests.filter(t => t.originalPhoto && t.swappedPhoto);
+      if (allPhotos.length > 0) {
+        let galleryHtml = `
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+              <i class="bi bi-grid-3x3-gap"></i> Galeria de Todas as Capturas
+            </div>
+            <div class="card-body">
+              <p class="text-muted mb-3">Visualize todas as fotos capturadas de todas as câmeras para análise visual comparativa</p>
+              <div class="row g-3">
+        `;
+        
+        allPhotos.forEach((test, idx) => {
+          galleryHtml += `
+            <div class="col-md-6 col-lg-4">
+              <div class="card">
+                <div class="card-header bg-light">
+                  <small><strong>Câmera ${idx + 1}:</strong> ${test.label || 'Sem nome'}</small>
+                </div>
+                <div class="card-body p-2">
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <img src="${test.originalPhoto}" 
+                           alt="Original ${idx + 1}" 
+                           class="img-fluid rounded" 
+                           style="cursor: pointer; max-height: 150px; object-fit: cover; width: 100%;"
+                           onclick="openImageModal('${test.originalPhoto}', 'Foto Original - ${test.label}')" />
+                      <small class="d-block text-center mt-1">Original</small>
+                    </div>
+                    <div class="col-6">
+                      <img src="${test.swappedPhoto}" 
+                           alt="Invertida ${idx + 1}" 
+                           class="img-fluid rounded" 
+                           style="cursor: pointer; max-height: 150px; object-fit: cover; width: 100%;"
+                           onclick="openImageModal('${test.swappedPhoto}', 'Foto Invertida - ${test.label}')" />
+                      <small class="d-block text-center mt-1">Invertida</small>
+                    </div>
+                  </div>
+                  <div class="mt-2 text-center">
+                    ${test.correctPhoto === 'original' ? 
+                      '<span class="badge bg-success">✓ Original correta</span>' : 
+                      '<span class="badge bg-warning">✓ Invertida correta</span>'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        
+        galleryHtml += `
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.getElementById('cameraTestsSection').innerHTML = galleryHtml;
+      }
+
+      // Testes de câmera detalhados
+      const testsSection = document.getElementById('cameraTestsSection');
+      let testsHtml = testsSection.innerHTML + '<h3 class="mb-4 mt-4"><i class="bi bi-camera-video"></i> Análise Detalhada por Câmera</h3>';
+
+      tests.forEach((test, index) => {
+        const hasError = test.error || test.skipped;
+        const videoInverted = test.videoAppearance === 'inverted';
+        const photoSwapped = test.correctPhoto === 'swapped';
+        const hasProblem = videoInverted || photoSwapped;
+
+        let badgeClass = 'badge-ok';
+        let badgeText = 'OK';
+        if (hasError) {
+          badgeClass = 'badge-warning';
+          badgeText = 'Erro';
+        } else if (hasProblem) {
+          badgeClass = 'badge-problem';
+          badgeText = 'Problema';
+        }
+
+        testsHtml += `
+          <div class="card camera-test-card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div>
+                <strong>Câmera ${index + 1}:</strong> ${test.label || 'Sem nome'}
+                <span class="badge ${badgeClass} ms-2">${badgeText}</span>
+              </div>
+              <small class="text-muted">${test.timestamp ? new Date(test.timestamp).toLocaleString('pt-BR') : ''}</small>
+            </div>
+            <div class="card-body">
+              ${hasError ? `
+                <div class="alert alert-warning">
+                  <strong>Erro:</strong> ${test.error || 'Teste pulado'}
+                </div>
+              ` : `
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <strong>Aparência do Vídeo:</strong>
+                    <span class="badge ${videoInverted ? 'bg-danger' : 'bg-success'} ms-2">
+                      ${videoInverted ? 'Invertido' : 'Normal'}
+                    </span>
+                  </div>
+                  <div class="col-md-6">
+                    <strong>Foto Correta:</strong>
+                    <span class="badge ${photoSwapped ? 'bg-warning' : 'bg-success'} ms-2">
+                      ${photoSwapped ? 'Com canais invertidos' : 'Original'}
+                    </span>
+                  </div>
+                </div>
+                ${test.originalPhoto && test.swappedPhoto ? `
+                  <div class="mb-3">
+                    <h6 class="mb-2"><i class="bi bi-images"></i> Capturas da Câmera:</h6>
+                    <div class="photo-comparison">
+                      <div class="photo-panel ${test.correctPhoto === 'original' ? 'selected' : ''}">
+                        <h5 class="text-center mb-2">
+                          <i class="bi bi-camera"></i> Foto Original
+                          ${test.correctPhoto === 'original' ? '<span class="badge bg-success ms-2">✓ Correta</span>' : ''}
+                        </h5>
+                        <img src="${test.originalPhoto}" alt="Foto Original" class="img-thumbnail" style="cursor: pointer;" onclick="openImageModal('${test.originalPhoto}', 'Foto Original - ${test.label}')" />
+                        <div class="text-center mt-2">
+                          <small class="text-muted">Clique para ampliar</small>
+                        </div>
+                      </div>
+                      <div class="photo-panel ${test.correctPhoto === 'swapped' ? 'selected' : ''}">
+                        <h5 class="text-center mb-2">
+                          <i class="bi bi-arrow-left-right"></i> Foto com Canais Invertidos
+                          ${test.correctPhoto === 'swapped' ? '<span class="badge bg-success ms-2">✓ Correta</span>' : ''}
+                        </h5>
+                        <img src="${test.swappedPhoto}" alt="Foto com Canais Invertidos" class="img-thumbnail" style="cursor: pointer;" onclick="openImageModal('${test.swappedPhoto}', 'Foto com Canais Invertidos - ${test.label}')" />
+                        <div class="text-center mt-2">
+                          <small class="text-muted">Clique para ampliar</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ` : '<div class="alert alert-warning">Fotos não disponíveis</div>'}
+                ${hasProblem ? `
+                  <div class="alert alert-danger mt-3">
+                    <strong><i class="bi bi-exclamation-triangle"></i> Problema Detectado:</strong>
+                    <ul class="mb-0 mt-2">
+                      ${videoInverted ? '<li>O vídeo apareceu com cores invertidas durante a captura</li>' : ''}
+                      ${photoSwapped ? '<li>A foto com canais invertidos foi escolhida como correta</li>' : ''}
+                    </ul>
+                    <strong class="mt-2 d-block">Recomendação:</strong> Esta câmera pode precisar de correção de inversão de canais RGB.
+                  </div>
+                ` : ''}
+              `}
+              <div class="mt-2">
+                <small class="text-muted">
+                  <strong>Device ID:</strong> <code>${test.deviceId || 'N/A'}</code>
+                </small>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      testsSection.innerHTML = testsHtml;
+
+      // JSON bruto
+      document.getElementById('rawJSON').textContent = JSON.stringify(data, null, 2);
+    }
+
+    function copyJSON() {
+      const jsonText = document.getElementById('rawJSON').textContent;
+      navigator.clipboard.writeText(jsonText).then(() => {
+        alert('JSON copiado para a área de transferência!');
+      }).catch(err => {
+        console.error('Erro ao copiar:', err);
+      });
+    }
+
+    function resetAnalysis() {
+      document.getElementById('uploadSection').classList.remove('hidden');
+      document.getElementById('analysisSection').classList.add('hidden');
+      document.getElementById('jsonInput').value = '';
+      document.getElementById('fileInput').value = '';
+      analysisData = null;
+    }
+
+    function exportReport() {
+      if (!analysisData) return;
+
+      const report = {
+        dataHora: new Date().toISOString(),
+        dispositivo: {
+          navegador: analysisData.browserName,
+          versao: analysisData.browserVersion,
+          os: analysisData.os,
+          idioma: analysisData.language
+        },
+        resumo: {
+          totalCameras: analysisData.cameraTests?.length || 0,
+          problemas: analysisData.cameraTests?.filter(t => 
+            t.videoAppearance === 'inverted' || t.correctPhoto === 'swapped'
+          ).length || 0,
+          normais: analysisData.cameraTests?.filter(t => 
+            t.videoAppearance === 'normal' && t.correctPhoto === 'original' && !t.error
+          ).length || 0
+        },
+        testes: analysisData.cameraTests
+      };
+
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-diagnostico-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openImageModal(imageSrc, title) {
+      // Cria modal dinamicamente
+      const modalHtml = `
+        <div class="modal fade" id="imageModal" tabindex="-1">
+          <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">${title}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body text-center">
+                <img src="${imageSrc}" alt="${title}" class="modal-image" />
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <a href="${imageSrc}" download="captura-${Date.now()}.jpg" class="btn btn-primary">
+                  <i class="bi bi-download me-1"></i> Baixar Imagem
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Remove modal anterior se existir
+      const existingModal = document.getElementById('imageModal');
+      if (existingModal) {
+        existingModal.remove();
+      }
+      
+      // Adiciona novo modal
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      // Abre modal usando Bootstrap
+      const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+      modal.show();
+      
+      // Remove modal do DOM quando fechado
+      document.getElementById('imageModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+      });
+    }
+  </script>
+</body>
+
+</html>
+

@@ -250,7 +250,7 @@
       <input type="hidden" name="browserVersion" />
       <input type="hidden" name="os" />
       <input type="hidden" name="language" />
-      <input type="hidden" name="cameraTests" />
+      <input type="hidden" name="JsonData" />
       <input type="hidden" name="userAgent" />
     </form>
   </div>
@@ -471,7 +471,7 @@
       const language = navigator.language;
       const browserInfo = parseUserAgent(ua);
 
-      // Preenche formulário
+      // Preenche campos individuais (para facilitar leitura no email)
       form.debugId.value = debugId;
       form.deviceDate.value = deviceDate;
       form.browserName.value = browserInfo.name;
@@ -479,7 +479,22 @@
       form.os.value = platform;
       form.language.value = language;
       form.userAgent.value = ua;
-      form.cameraTests.value = JSON.stringify(diagnosticData.tests);
+
+      // Cria JSON completo com todos os dados para o analisador
+      const completeJsonData = {
+        debugId: debugId,
+        deviceDate: deviceDate,
+        browserName: browserInfo.name,
+        browserVersion: browserInfo.version,
+        os: platform,
+        language: language,
+        userAgent: ua,
+        cameraTests: diagnosticData.tests,
+        startTime: diagnosticData.startTime,
+        endTime: Date.now(),
+        elapsedTime: Date.now() - diagnosticData.startTime
+      };
+      form.JsonData.value = JSON.stringify(completeJsonData);
 
       // Desabilita botão durante envio
       const submitBtn = document.getElementById('submitBtn');
