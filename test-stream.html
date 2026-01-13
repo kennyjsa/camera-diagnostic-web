@@ -860,7 +860,8 @@ function enviarDiagnostico() {
   
   // Redireciona após 1 segundo
   setTimeout(() => {
-    window.location.href = "/thankyou.html";
+    const currentPage = window.location.pathname.split('/').pop() || 'test-stream.html';
+    window.location.href = `/thankyou.html?from=${encodeURIComponent(currentPage)}`;
   }, 1000);
 }
 

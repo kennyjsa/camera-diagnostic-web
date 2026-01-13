@@ -497,8 +497,9 @@
         });
 
         if (response.ok) {
-          // Sucesso - redireciona para página de agradecimento
-          window.location.href = "/thankyou.html";
+          // Sucesso - redireciona para página de agradecimento com referência
+          const currentPage = window.location.pathname.split('/').pop() || 'color-diagnostic.html';
+          window.location.href = `/thankyou.html?from=${encodeURIComponent(currentPage)}`;
         } else {
           throw new Error('Erro ao enviar formulário');
         }

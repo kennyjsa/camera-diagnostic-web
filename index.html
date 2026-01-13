@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Diagnóstico de Câmera</title>
+  <title>Diagnóstico de Câmera - Home</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
   <style>
@@ -13,301 +13,145 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    .terminal {
-      background: rgb(33, 37, 41);
-      color: #0f0;
-      padding: 1rem;
-      height: 300px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      border-bottom-left-radius: 5px;
-      border-bottom-right-radius: 5px;
-      font-family: monospace;
-      font-size: 0.875rem;
+    .hero-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 60px 0;
+      margin-bottom: 40px;
     }
 
-    .hidden {
-      display: none;
+    .test-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      height: 100%;
+    }
+
+    .test-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .test-card .card-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
 
 <body>
-
-  <div class="container py-5" style="max-width: 600px;">
-    <div class="text-center mb-4">
-      <h1><i class="bi bi-camera-video-fill"></i> Diagnóstico de Câmera</h1>
-      <p class="text-muted">Verifique o funcionamento da sua câmera, navegador e permissões.</p>
+  <!-- Hero Section -->
+  <div class="hero-section">
+    <div class="container text-center">
+      <h1 class="display-4 mb-3"><i class="bi bi-camera-video-fill"></i> Diagnóstico de Câmera</h1>
+      <p class="lead">Ferramentas de diagnóstico para testar e verificar o funcionamento de câmeras em dispositivos
+        móveis e desktop</p>
     </div>
-
-    <div class="card shadow-sm mb-3">
-      <div class="card-header bg-dark text-white">
-        <i class="bi bi-terminal"></i> Terminal de Diagnóstico
-      </div>
-      <div class="terminal" id="log">🟢 Aguardando início do diagnóstico...</div>
-    </div>
-
-    <!-- Device Info Card -->
-    <div class="card shadow-sm mb-3">
-      <div class="card-header bg-info text-white">
-        <i class="bi bi-phone"></i> Identificação do Dispositivo
-      </div>
-      <div class="card-body">
-        <div class="mb-2">
-          <strong>Modelo:</strong> <span id="deviceModel">Detectando...</span>
-        </div>
-        <div class="mb-2">
-          <strong>Chave Whitelist:</strong> <code id="deviceKey" class="bg-light p-1 rounded">...</code>
-        </div>
-        <div class="mb-3">
-          <strong>User-Agent:</strong> <small class="text-muted d-block" id="userAgentDisplay"
-            style="word-break: break-all;">...</small>
-        </div>
-      </div>
-    </div>
-
-    <div class="d-grid gap-3">
-      <button class="btn btn-primary btn-lg" id="iniciarBtn" onclick="iniciarDiagnostico()">
-        <i class="bi bi-camera-video-fill me-1"></i> Iniciar Diagnóstico
-      </button>
-    </div>
-
-    <form name="diagnostico" method="POST" action="/thankyou.html" netlify-honeypot="bot-field" data-netlify="true">
-      <p class="hidden">
-        <label>
-          Don’t fill this out if you’re human: <input name="bot-field" type="text" />
-        </label>
-      </p>
-      <input type="hidden" name="form-name" value="diagnostico" />
-      <input type="hidden" name="debugId" />
-      <input type="hidden" name="deviceDate" />
-      <input type="hidden" name="elapsedTimeMs" />
-      <input type="hidden" name="browserName" />
-      <input type="hidden" name="browserVersion" />
-      <input type="hidden" name="os" />
-      <input type="hidden" name="language" />
-      <input type="hidden" name="cameraCount" />
-      <input type="hidden" name="supportsMediaDevices" />
-      <input type="hidden" name="permissionsCamera" />
-      <input type="hidden" name="permissionsMicrophone" />
-      <input type="hidden" name="cameraInfo" />
-      <input type="hidden" name="errors" />
-
-
-      <div class="d-grid mt-3">
-        <button class="btn btn-success btn-lg" type="submit" id="enviarBtn" onclick="enviarDiagnostico()"
-          style="display:none">
-          <i class="bi bi-clipboard-check me-1"></i> Enviar Diagnóstico
-        </button>
-      </div>
-    </form>
   </div>
 
-  <script>
-    // toda a lógica JS mantida aqui
-    (function () {
-      const logEl = document.getElementById('log');
-      const enviarBtn = document.getElementById('enviarBtn');
-      const iniciarBtn = document.getElementById('iniciarBtn');
-      const form = document.forms['diagnostico'];
-      let startTime;
+  <!-- Test Cards -->
+  <div class="container py-5">
+    <div class="row g-4">
+      <!-- Diagnóstico Geral -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card test-card shadow-sm h-100">
+          <div class="card-body text-center">
+            <div class="card-icon text-primary">
+              <i class="bi bi-clipboard-check"></i>
+            </div>
+            <h5 class="card-title">Diagnóstico Geral</h5>
+            <p class="card-text text-muted">
+              Verifique o funcionamento da sua câmera, navegador e permissões. Testa todas as câmeras disponíveis e
+              coleta informações detalhadas sobre capacidades e configurações.
+            </p>
+            <ul class="list-unstyled text-start small mb-3">
+              <li><i class="bi bi-check-circle text-success"></i> Detecção de dispositivos</li>
+              <li><i class="bi bi-check-circle text-success"></i> Verificação de permissões</li>
+              <li><i class="bi bi-check-circle text-success"></i> Informações de capacidades</li>
+              <li><i class="bi bi-check-circle text-success"></i> Identificação do dispositivo</li>
+            </ul>
+            <a href="camera-diagnostic.html" class="btn btn-primary">
+              <i class="bi bi-play-fill me-1"></i> Iniciar Teste
+            </a>
+          </div>
+        </div>
+      </div>
 
-      const log = (text) => {
-        logEl.textContent += `\n${text}`;
-        logEl.scrollTop = logEl.scrollHeight;
-      };
+      <!-- Diagnóstico de Cores -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card test-card shadow-sm h-100">
+          <div class="card-body text-center">
+            <div class="card-icon text-danger">
+              <i class="bi bi-palette-fill"></i>
+            </div>
+            <h5 class="card-title">Diagnóstico de Cores</h5>
+            <p class="card-text text-muted">
+              Teste específico para identificar problemas de inversão de cores (azul aparecendo como vermelho). Testa
+              todas as câmeras do dispositivo com captura de fotos e comparação visual.
+            </p>
+            <ul class="list-unstyled text-start small mb-3">
+              <li><i class="bi bi-check-circle text-success"></i> Teste de todas as câmeras</li>
+              <li><i class="bi bi-check-circle text-success"></i> Captura de fotos</li>
+              <li><i class="bi bi-check-circle text-success"></i> Comparação de cores</li>
+              <li><i class="bi bi-check-circle text-success"></i> Wizard interativo</li>
+            </ul>
+            <a href="color-diagnostic.html" class="btn btn-danger">
+              <i class="bi bi-play-fill me-1"></i> Iniciar Teste
+            </a>
+          </div>
+        </div>
+      </div>
 
-      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      <!-- Teste de Stream -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card test-card shadow-sm h-100">
+          <div class="card-body text-center">
+            <div class="card-icon text-info">
+              <i class="bi bi-camera-video"></i>
+            </div>
+            <h5 class="card-title">Teste de Stream</h5>
+            <p class="card-text text-muted">
+              Teste avançado de stream de vídeo com seleção inteligente de câmera, configurações de zoom, foco e outras
+              capacidades avançadas.
+            </p>
+            <ul class="list-unstyled text-start small mb-3">
+              <li><i class="bi bi-check-circle text-success"></i> Seleção inteligente de câmera</li>
+              <li><i class="bi bi-check-circle text-success"></i> Teste de zoom e foco</li>
+              <li><i class="bi bi-check-circle text-success"></i> Log detalhado</li>
+              <li><i class="bi bi-check-circle text-success"></i> Configurações avançadas</li>
+            </ul>
+            <a href="test-stream.html" class="btn btn-info">
+              <i class="bi bi-play-fill me-1"></i> Iniciar Teste
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      async function iniciarDiagnostico() {
-        startTime = Date.now();
-        iniciarBtn.disabled = true;
-        logEl.textContent = "⏳ Iniciando diagnóstico...\n";
-        const errors = [];
+  <!-- Info Section -->
+  <div class="container py-4">
+    <div class="row">
+      <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Sobre os Testes</h5>
+            <p class="card-text">
+              Estas ferramentas foram desenvolvidas para ajudar no diagnóstico de problemas com câmeras em dispositivos
+              móveis e navegadores. Todos os testes são executados localmente no seu navegador e os resultados podem ser
+              enviados para análise.
+            </p>
+            <p class="card-text mb-0">
+              <small class="text-muted">
+                <i class="bi bi-shield-check me-1"></i> Todos os dados são processados localmente. Nenhuma informação
+                é transmitida sem sua autorização.
+              </small>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        const debugId = Date.now().toString();
-        const deviceDate = new Date().toISOString();
-
-        log("🔍 Coletando informações do navegador...");
-        await delay(300);
-        const ua = navigator.userAgent;
-        const platform = navigator.platform;
-        const language = navigator.language;
-
-        const browserInfo = parseUserAgent(ua);
-        form.browserName.value = browserInfo.name;
-        form.browserVersion.value = browserInfo.version;
-        form.os.value = platform;
-        form.language.value = language;
-        form.debugId.value = debugId;
-        form.deviceDate.value = deviceDate;
-        log("✅ Navegador: " + browserInfo.name + " " + browserInfo.version);
-
-        const supports = !!navigator.mediaDevices?.getUserMedia;
-        form.supportsMediaDevices.value = supports;
-        if (!supports) {
-          errors.push("Navegador não suporta mediaDevices.getUserMedia");
-          log("❌ Navegador não suporta getUserMedia.");
-        }
-
-        try {
-          log("🎥 Solicitando permissão de câmera...");
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          log("✅ Permissão concedida.");
-        } catch (e) {
-          log("❌ Erro ao acessar câmera: " + e.message);
-          errors.push("Erro ao acessar câmera: " + e.message);
-        }
-
-        try {
-          const [camPerm, micPerm] = await Promise.all([
-            navigator.permissions.query({ name: 'camera' }),
-            navigator.permissions.query({ name: 'microphone' })
-          ]);
-          form.permissionsCamera.value = camPerm.state;
-          form.permissionsMicrophone.value = micPerm.state;
-          log(`📋 Permissões: câmera=${camPerm.state}, microfone=${micPerm.state}`);
-        } catch {
-          form.permissionsCamera.value = 'unsupported';
-          form.permissionsMicrophone.value = 'unsupported';
-          log("⚠️ Permissões não suportadas.");
-        }
-
-        let cameraData = [];
-        try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const cameras = devices.filter(d => d.kind === 'videoinput');
-          form.cameraCount.value = cameras.length;
-          log(`🔎 ${cameras.length} câmera(s) detectada(s).`);
-
-          for (let i = 0; i < cameras.length; i++) {
-            try {
-              const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: cameras[i].deviceId } });
-              const track = stream.getVideoTracks()[0];
-              const data = {
-                deviceId: cameras[i].deviceId,
-                label: cameras[i].label,
-                capabilities: track.getCapabilities?.() || {},
-                settings: track.getSettings?.() || {},
-                constraints: track.getConstraints?.() || {},
-              };
-              stream.getTracks().forEach(t => t.stop());
-              cameraData.push(data);
-              log(`📷 ${i + 1}: ${data.label || 'Sem nome'}`);
-            } catch (e) {
-              errors.push(`Erro na câmera ${i + 1}: ` + e.message);
-              log(`❌ Erro na câmera ${i + 1}: ` + e.message);
-            }
-          }
-
-          form.cameraInfo.value = JSON.stringify(cameraData);
-        } catch (e) {
-          errors.push("Erro ao enumerar dispositivos: " + e.message);
-          log("❌ Erro ao enumerar dispositivos.");
-        }
-
-        form.elapsedTimeMs.value = Date.now() - startTime;
-        form.errors.value = JSON.stringify(errors);
-
-        if (errors.length > 0) {
-          log("\n⚠️ Diagnóstico concluído com erros.");
-        } else {
-          log("\n✅ Diagnóstico concluído com sucesso.");
-        }
-
-        enviarBtn.style.display = 'inline-block';
-      }
-
-      function enviarDiagnostico() {
-        log("\n📤 Enviando diagnóstico...");
-        form.submit();
-        iniciarBtn.style.display = 'none';
-        enviarBtn.style.display = 'none';
-        log("✅ Enviado! Redirecionando...");
-        setTimeout(() => window.location.href = "/thankyou.html", 1000);
-      }
-
-      function parseUserAgent(ua) {
-        let name = "Desconhecido", version = "0";
-        if (ua.includes("Chrome/")) {
-          name = "Chrome";
-          version = ua.split("Chrome/")[1].split(" ")[0];
-        } else if (ua.includes("Firefox/")) {
-          name = "Firefox";
-          version = ua.split("Firefox/")[1];
-        } else if (ua.includes("Safari/") && ua.includes("Version/")) {
-          name = "Safari";
-          version = ua.split("Version/")[1].split(" ")[0];
-        } else if (ua.includes("Edg/")) {
-          name = "Edge";
-          version = ua.split("Edg/")[1];
-        }
-        return { name, version };
-      }
-
-      // Função para extrair informações do dispositivo
-      function extractDeviceInfo() {
-        const ua = navigator.userAgent;
-        const platform = navigator.platform;
-        let model = "Desktop/Desconhecido";
-
-        // Heurística simples para detectar modelo Android no User-Agent
-        // Padrão comum: "Android ...; <Modelo> Build/..."
-        if (ua.includes("Android")) {
-          const match = ua.match(/Android.*?; (.*?) Build\//);
-          if (match && match[1]) {
-            model = match[1].trim();
-          } else {
-            model = "Android Generic";
-          }
-        } else if (ua.includes("iPhone") || ua.includes("iPad")) {
-          model = "iOS Device";
-        }
-
-        const { name: browserName, version: browserVersion } = parseUserAgent(ua);
-        const majorVersion = browserVersion.split('.')[0];
-
-        return {
-          userAgent: ua,
-          platform: platform,
-          model: model,
-          browserName: browserName,
-          browserVersion: browserVersion,
-          majorVersion: majorVersion
-        };
-      }
-
-      // Função para gerar a chave de whitelist
-      function generateDeviceKey(info) {
-        // Remove espaços do modelo e converte para minúsculas para a chave
-        const cleanModel = info.model.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
-        // Formato: <modelo>-chrome-<versao-major>
-        // Nota: Usando 'chrome' fixo se for Chrome ou WebView baseado em Chromium, 
-        // mas adaptando se for outro navegador.
-        const browserKey = info.browserName.toLowerCase();
-        return `${cleanModel}-${browserKey}-${info.majorVersion}`;
-      }
-
-      // Inicializa a seção de informações do dispositivo
-      function initDeviceInfo() {
-        const info = extractDeviceInfo();
-        const key = generateDeviceKey(info);
-
-        document.getElementById('deviceModel').textContent = info.model;
-        document.getElementById('deviceKey').textContent = key;
-        document.getElementById('userAgentDisplay').textContent = info.userAgent;
-
-        log(`📱 Dispositivo identificado: ${info.model}`);
-        log(`🔑 Chave gerada: ${key}`);
-      }
-
-      window.iniciarDiagnostico = iniciarDiagnostico;
-      window.enviarDiagnostico = enviarDiagnostico;
-
-      // Executa inicialização ao carregar
-      initDeviceInfo();
-
-    })();</script>
 </body>
 
 </html>
+
