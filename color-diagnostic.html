@@ -290,20 +290,65 @@
       }
     }
 
+    // Controle de modo de teste: false = simples, true = com constraints avançadas
+    let testingWithConstraints = false;
+
+    // Aplica constraints avançadas ao stream (simula o comportamento do vistoria-app)
+    async function applyAdvancedConstraints(stream) {
+      const track = stream.getVideoTracks()[0];
+      const caps = track.getCapabilities() || {};
+      const advanced = [];
+
+      if (caps.zoom) {
+        advanced.push({ zoom: caps.zoom.min });
+      }
+      if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+        advanced.push({ focusMode: 'continuous' });
+      }
+      if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('continuous')) {
+        advanced.push({ whiteBalanceMode: 'continuous' });
+      }
+
+      if (advanced.length > 0) {
+        try {
+          await track.applyConstraints({ advanced });
+          console.log('Constraints avançadas aplicadas:', advanced);
+          return { applied: true, constraints: advanced };
+        } catch (error) {
+          console.warn('Erro ao aplicar constraints:', error);
+          return { applied: false, error: error.message };
+        }
+      }
+      return { applied: false, reason: 'Nenhuma constraint suportada' };
+    }
+
     // Inicia o teste da próxima câmera
     async function startNextCameraTest() {
       currentCameraIndex++;
 
       if (currentCameraIndex >= cameras.length) {
-        // Todas as câmeras foram testadas
+        // Se ainda não testou com constraints, reinicia para testar
+        if (!testingWithConstraints) {
+          testingWithConstraints = true;
+          currentCameraIndex = -1;
+          updateProgress(50, 'Iniciando teste COM constraints avançadas...');
+          await delay(1500);
+          startNextCameraTest();
+          return;
+        }
+        // Todas as câmeras foram testadas em ambos os modos
         showSummary();
         return;
       }
 
       const camera = cameras[currentCameraIndex];
+      const modeLabel = testingWithConstraints ? 'COM constraints' : 'SEM constraints';
+      const totalTests = cameras.length * 2;
+      const currentTest = testingWithConstraints ? cameras.length + currentCameraIndex + 1 : currentCameraIndex + 1;
+      
       updateProgress(
-        ((currentCameraIndex + 1) / cameras.length) * 100,
-        `Testando câmera ${currentCameraIndex + 1} de ${cameras.length}: ${camera.label || 'Sem nome'}`
+        (currentTest / totalTests) * 100,
+        `[${modeLabel}] Testando câmera ${currentCameraIndex + 1} de ${cameras.length}`
       );
 
       // Para o stream anterior se existir
@@ -313,7 +358,7 @@
 
       // Mostra o step da câmera
       showStep('stepCamera');
-      document.getElementById('cameraNumber').textContent = `${currentCameraIndex + 1} de ${cameras.length}`;
+      document.getElementById('cameraNumber').textContent = `${currentCameraIndex + 1} de ${cameras.length} (${modeLabel})`;
       document.getElementById('cameraName').textContent = camera.label || `Câmera ${currentCameraIndex + 1}`;
 
       try {
@@ -322,6 +367,16 @@
           video: { deviceId: { exact: camera.deviceId } },
           audio: false
         });
+
+        // Aplica constraints avançadas se estiver no modo de teste com constraints
+        let constraintsResult = null;
+        if (testingWithConstraints) {
+          constraintsResult = await applyAdvancedConstraints(currentStream);
+        }
+
+        // Armazena info sobre constraints para uso posterior
+        window.currentConstraintsResult = constraintsResult;
+        window.currentTestingWithConstraints = testingWithConstraints;
 
         const videoPreview = document.getElementById('videoPreview');
         videoPreview.srcObject = currentStream;
@@ -334,7 +389,8 @@
           deviceId: camera.deviceId,
           label: camera.label || `Câmera ${currentCameraIndex + 1}`,
           error: error.message,
-          skipped: true
+          skipped: true,
+          withConstraints: testingWithConstraints
         });
         await delay(1000);
         startNextCameraTest();
@@ -418,12 +474,17 @@
         correctPhoto: choice,
         originalPhoto: window.currentPhotos.original,
         swappedPhoto: window.currentPhotos.swapped,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        // Informações sobre constraints
+        withConstraints: window.currentTestingWithConstraints || false,
+        constraintsResult: window.currentConstraintsResult || null
       });
 
       // Limpa dados temporários
       delete window.currentPhotos;
       delete window.currentVideoAppearance;
+      delete window.currentConstraintsResult;
+      delete window.currentTestingWithConstraints;
 
       // Aguarda um pouco e vai para próxima câmera
       setTimeout(() => {
@@ -437,26 +498,105 @@
       showStep('stepSummary');
 
       const summaryContent = document.getElementById('summaryContent');
+      
+      // Separa testes por modo
+      const testsWithoutConstraints = diagnosticData.tests.filter(t => !t.withConstraints);
+      const testsWithConstraints = diagnosticData.tests.filter(t => t.withConstraints);
+
       let html = '';
 
-      diagnosticData.tests.forEach((test, index) => {
-        const statusClass = test.error ? 'error' : 'success';
-        const statusIcon = test.error ? '❌' : '✅';
+      // Seção SEM constraints
+      html += '<h5 class="mt-3 mb-2">🔵 Testes SEM Constraints Avançadas</h5>';
+      html += '<p class="text-muted small">Modo simples - como funciona no diagnóstico atual</p>';
+      
+      if (testsWithoutConstraints.length === 0) {
+        html += '<p class="text-muted">Nenhum teste realizado.</p>';
+      } else {
+        testsWithoutConstraints.forEach((test, index) => {
+          const hasColorIssue = test.videoAppearance === 'inverted' || test.correctPhoto === 'swapped';
+          const statusClass = test.error ? 'error' : (hasColorIssue ? 'error' : 'success');
+          const statusIcon = test.error ? '❌' : (hasColorIssue ? '⚠️' : '✅');
+          html += `
+            <div class="summary-item ${statusClass}">
+              <strong>${statusIcon} Câmera ${index + 1}:</strong> ${test.label || 'Sem nome'}<br>
+              ${test.error ? 
+                `<small class="text-danger">Erro: ${test.error}</small>` :
+                `<small>
+                  Vídeo: ${test.videoAppearance === 'normal' ? '✅ Normal' : '❌ Invertido'}<br>
+                  Foto correta: ${test.correctPhoto === 'original' ? '✅ Original' : '❌ Com canais invertidos'}
+                </small>`
+              }
+            </div>
+          `;
+        });
+      }
+
+      // Seção COM constraints
+      html += '<h5 class="mt-4 mb-2">🟠 Testes COM Constraints Avançadas</h5>';
+      html += '<p class="text-muted small">Modo avançado - simula o comportamento do vistoria-app</p>';
+      
+      if (testsWithConstraints.length === 0) {
+        html += '<p class="text-muted">Nenhum teste realizado.</p>';
+      } else {
+        testsWithConstraints.forEach((test, index) => {
+          const hasColorIssue = test.videoAppearance === 'inverted' || test.correctPhoto === 'swapped';
+          const statusClass = test.error ? 'error' : (hasColorIssue ? 'error' : 'success');
+          const statusIcon = test.error ? '❌' : (hasColorIssue ? '⚠️' : '✅');
+          const constraintsInfo = test.constraintsResult?.applied 
+            ? `Constraints: ${JSON.stringify(test.constraintsResult.constraints)}`
+            : 'Constraints não aplicadas';
+          html += `
+            <div class="summary-item ${statusClass}">
+              <strong>${statusIcon} Câmera ${index + 1}:</strong> ${test.label || 'Sem nome'}<br>
+              ${test.error ? 
+                `<small class="text-danger">Erro: ${test.error}</small>` :
+                `<small>
+                  Vídeo: ${test.videoAppearance === 'normal' ? '✅ Normal' : '❌ Invertido'}<br>
+                  Foto correta: ${test.correctPhoto === 'original' ? '✅ Original' : '❌ Com canais invertidos'}<br>
+                  <span class="text-muted">${constraintsInfo}</span>
+                </small>`
+              }
+            </div>
+          `;
+        });
+      }
+
+      // Diagnóstico automático
+      const issuesWithoutConstraints = testsWithoutConstraints.filter(t => 
+        !t.error && (t.videoAppearance === 'inverted' || t.correctPhoto === 'swapped')
+      ).length;
+      const issuesWithConstraints = testsWithConstraints.filter(t => 
+        !t.error && (t.videoAppearance === 'inverted' || t.correctPhoto === 'swapped')
+      ).length;
+
+      html += '<h5 class="mt-4 mb-2">📊 Diagnóstico</h5>';
+      
+      if (issuesWithoutConstraints === 0 && issuesWithConstraints > 0) {
         html += `
-          <div class="summary-item ${statusClass}">
-            <strong>${statusIcon} Câmera ${index + 1}:</strong> ${test.label || 'Sem nome'}<br>
-            ${test.error ? 
-              `<small class="text-danger">Erro: ${test.error}</small>` :
-              `<small>
-                Vídeo: ${test.videoAppearance === 'normal' ? 'Normal' : 'Invertido'}<br>
-                Foto correta: ${test.correctPhoto === 'original' ? 'Original' : 'Com canais invertidos'}
-              </small>`
-            }
+          <div class="alert alert-warning">
+            <strong>🎯 Problema identificado!</strong><br>
+            As cores ficam invertidas APENAS quando constraints avançadas são aplicadas.<br>
+            <strong>Solução:</strong> Desabilitar constraints avançadas no vistoria-app (já implementado).
           </div>
         `;
-      });
+      } else if (issuesWithoutConstraints > 0 && issuesWithConstraints > 0) {
+        html += `
+          <div class="alert alert-danger">
+            <strong>⚠️ Problema no driver da câmera!</strong><br>
+            As cores ficam invertidas em ambos os modos.<br>
+            O problema está no driver/firmware do dispositivo.
+          </div>
+        `;
+      } else if (issuesWithoutConstraints === 0 && issuesWithConstraints === 0) {
+        html += `
+          <div class="alert alert-success">
+            <strong>✅ Tudo funcionando!</strong><br>
+            Nenhum problema de inversão de cores detectado.
+          </div>
+        `;
+      }
 
-      summaryContent.innerHTML = html || '<p class="text-muted">Nenhum teste realizado.</p>';
+      summaryContent.innerHTML = html;
     }
 
     // Envia diagnóstico
@@ -530,10 +670,13 @@
     // Reinicia wizard
     function restartWizard() {
       currentCameraIndex = -1;
+      testingWithConstraints = false;
       diagnosticData.tests = [];
       diagnosticData.startTime = Date.now();
       delete window.currentPhotos;
       delete window.currentVideoAppearance;
+      delete window.currentConstraintsResult;
+      delete window.currentTestingWithConstraints;
 
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
