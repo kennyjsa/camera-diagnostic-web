@@ -131,6 +131,26 @@
       <p class="text-muted">Teste todas as câmeras do seu dispositivo para identificar problemas de inversão de cores</p>
     </div>
 
+    <!-- Device Info Card -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-phone"></i> Dispositivo Detectado
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-6">
+            <strong>Modelo:</strong> <span id="deviceModel">Detectando...</span>
+          </div>
+          <div class="col-6">
+            <strong>Marca:</strong> <span id="deviceBrand">-</span>
+          </div>
+        </div>
+        <div class="mt-2">
+          <strong>Navegador:</strong> <span id="browserInfo">-</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Progress Bar -->
     <div class="progress-bar-container">
       <div class="progress" style="height: 30px;">
@@ -246,6 +266,8 @@
       <input type="hidden" name="form-name" value="colorDiagnostic" />
       <input type="hidden" name="debugId" />
       <input type="hidden" name="deviceDate" />
+      <input type="hidden" name="deviceModel" />
+      <input type="hidden" name="deviceBrand" />
       <input type="hidden" name="browserName" />
       <input type="hidden" name="browserVersion" />
       <input type="hidden" name="os" />
@@ -267,6 +289,15 @@
     // Inicialização
     async function init() {
       try {
+        // Exibe informações do dispositivo
+        const deviceInfo = await getDeviceInfo();
+        document.getElementById('deviceModel').textContent = deviceInfo.model || 'Não detectado';
+        document.getElementById('deviceBrand').textContent = deviceInfo.brand || '-';
+        document.getElementById('browserInfo').textContent = `${deviceInfo.browserName} ${deviceInfo.browserVersion}`;
+        
+        // Armazena para uso posterior
+        diagnosticData.deviceInfo = deviceInfo;
+
         // Solicita permissão de câmera
         await navigator.mediaDevices.getUserMedia({ video: true });
 
@@ -605,30 +636,42 @@
       const debugId = Date.now().toString();
       const deviceDate = new Date().toISOString();
 
-      // Informações do navegador
-      const ua = navigator.userAgent;
-      const platform = navigator.platform;
+      // Obtém informações detalhadas do dispositivo (inclui Client Hints quando disponível)
+      const deviceInfo = await getDeviceInfo();
       const language = navigator.language;
-      const browserInfo = parseUserAgent(ua);
 
       // Preenche campos individuais (para facilitar leitura no email)
       form.debugId.value = debugId;
       form.deviceDate.value = deviceDate;
-      form.browserName.value = browserInfo.name;
-      form.browserVersion.value = browserInfo.version;
-      form.os.value = platform;
+      form.deviceModel.value = deviceInfo.model || '';
+      form.deviceBrand.value = deviceInfo.brand || '';
+      form.browserName.value = deviceInfo.browserName;
+      form.browserVersion.value = deviceInfo.browserVersion;
+      form.os.value = deviceInfo.platform;
       form.language.value = language;
-      form.userAgent.value = ua;
+      form.userAgent.value = deviceInfo.userAgent;
 
       // Cria JSON completo com todos os dados para o analisador
       const completeJsonData = {
         debugId: debugId,
         deviceDate: deviceDate,
-        browserName: browserInfo.name,
-        browserVersion: browserInfo.version,
-        os: platform,
+        // Informações do dispositivo (detalhadas)
+        device: {
+          model: deviceInfo.model,
+          brand: deviceInfo.brand,
+          platform: deviceInfo.platform,
+          platformVersion: deviceInfo.platformVersion,
+          architecture: deviceInfo.architecture,
+          isMobile: deviceInfo.isMobile,
+          clientHintsSupported: deviceInfo.clientHintsSupported
+        },
+        // Informações do navegador
+        browserName: deviceInfo.browserName,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.platform,
         language: language,
-        userAgent: ua,
+        userAgent: deviceInfo.userAgent,
+        // Resultados dos testes
         cameraTests: diagnosticData.tests,
         startTime: diagnosticData.startTime,
         endTime: Date.now(),
@@ -721,6 +764,84 @@
         version = ua.split("Edg/")[1];
       }
       return { name, version };
+    }
+
+    // Extrai modelo do User-Agent (fallback)
+    function extractModelFromUA(ua) {
+      // Android: "Android ...; <Modelo> Build/..."
+      if (ua.includes("Android")) {
+        const match = ua.match(/Android[^;]*;\s*([^)]+)\s*Build\//);
+        if (match && match[1]) {
+          return match[1].trim();
+        }
+        // Fallback: tenta outro padrão
+        const match2 = ua.match(/Android[^;]*;\s*([^)]+)\)/);
+        if (match2 && match2[1]) {
+          return match2[1].trim();
+        }
+        return "Android (modelo não detectado)";
+      }
+      if (ua.includes("iPhone")) return "iPhone";
+      if (ua.includes("iPad")) return "iPad";
+      return "Desktop/Desconhecido";
+    }
+
+    // Obtém informações detalhadas do dispositivo (usa Client Hints quando disponível)
+    async function getDeviceInfo() {
+      const ua = navigator.userAgent;
+      const platform = navigator.platform;
+      const browserInfo = parseUserAgent(ua);
+      
+      let deviceInfo = {
+        userAgent: ua,
+        platform: platform,
+        browserName: browserInfo.name,
+        browserVersion: browserInfo.version,
+        model: extractModelFromUA(ua),
+        brand: null,
+        isMobile: /Android|iPhone|iPad|iPod/i.test(ua)
+      };
+
+      // Tenta usar User-Agent Client Hints API (mais preciso, mas só Chrome/Edge)
+      if (navigator.userAgentData) {
+        try {
+          // Solicita informações de alta entropia (marca e modelo)
+          const highEntropyValues = await navigator.userAgentData.getHighEntropyValues([
+            'model',
+            'platformVersion',
+            'architecture',
+            'bitness',
+            'fullVersionList',
+            'mobile',
+            'platform'
+          ]);
+          
+          deviceInfo.model = highEntropyValues.model || deviceInfo.model;
+          deviceInfo.platform = highEntropyValues.platform || deviceInfo.platform;
+          deviceInfo.isMobile = highEntropyValues.mobile;
+          deviceInfo.platformVersion = highEntropyValues.platformVersion;
+          deviceInfo.architecture = highEntropyValues.architecture;
+          
+          // Tenta extrair marca dos brands
+          if (navigator.userAgentData.brands) {
+            const brands = navigator.userAgentData.brands
+              .filter(b => !b.brand.includes('Not') && !b.brand.includes('Chromium'))
+              .map(b => b.brand);
+            if (brands.length > 0) {
+              deviceInfo.brand = brands[0];
+            }
+          }
+          
+          deviceInfo.clientHintsSupported = true;
+        } catch (e) {
+          console.warn('Client Hints não disponível:', e);
+          deviceInfo.clientHintsSupported = false;
+        }
+      } else {
+        deviceInfo.clientHintsSupported = false;
+      }
+
+      return deviceInfo;
     }
 
     // Inicia quando a página carrega
